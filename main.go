@@ -69,6 +69,7 @@ type SiteMetrics struct {
 	SiteName    string
 	Label       string
 	PlanName    string
+	Account     string // Account identifier (truncated token)
 	MetricsData map[string]MetricData
 }
 
@@ -90,31 +91,31 @@ func NewPantheonCollector(sites []SiteMetrics) *PantheonCollector {
 		visits: prometheus.NewDesc(
 			"pantheon_visits",
 			"Number of visits",
-			[]string{"name", "label", "plan"},
+			[]string{"name", "label", "plan", "account"},
 			nil,
 		),
 		pagesServed: prometheus.NewDesc(
 			"pantheon_pages_served",
 			"Number of pages served",
-			[]string{"name", "label", "plan"},
+			[]string{"name", "label", "plan", "account"},
 			nil,
 		),
 		cacheHits: prometheus.NewDesc(
 			"pantheon_cache_hits",
 			"Number of cache hits",
-			[]string{"name", "label", "plan"},
+			[]string{"name", "label", "plan", "account"},
 			nil,
 		),
 		cacheMisses: prometheus.NewDesc(
 			"pantheon_cache_misses",
 			"Number of cache misses",
-			[]string{"name", "label", "plan"},
+			[]string{"name", "label", "plan", "account"},
 			nil,
 		),
 		cacheHitRatio: prometheus.NewDesc(
 			"pantheon_cache_hit_ratio",
 			"Cache hit ratio as percentage",
-			[]string{"name", "label", "plan"},
+			[]string{"name", "label", "plan", "account"},
 			nil,
 		),
 	}
@@ -154,35 +155,35 @@ func (c *PantheonCollector) Collect(ch chan<- prometheus.Metric) {
 				c.visits,
 				prometheus.GaugeValue,
 				float64(data.Visits),
-				site.SiteName, site.Label, site.PlanName,
+				site.SiteName, site.Label, site.PlanName, site.Account,
 			))
 
 			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
 				c.pagesServed,
 				prometheus.GaugeValue,
 				float64(data.PagesServed),
-				site.SiteName, site.Label, site.PlanName,
+				site.SiteName, site.Label, site.PlanName, site.Account,
 			))
 
 			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
 				c.cacheHits,
 				prometheus.GaugeValue,
 				float64(data.CacheHits),
-				site.SiteName, site.Label, site.PlanName,
+				site.SiteName, site.Label, site.PlanName, site.Account,
 			))
 
 			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
 				c.cacheMisses,
 				prometheus.GaugeValue,
 				float64(data.CacheMisses),
-				site.SiteName, site.Label, site.PlanName,
+				site.SiteName, site.Label, site.PlanName, site.Account,
 			))
 
 			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
 				c.cacheHitRatio,
 				prometheus.GaugeValue,
 				cacheHitRatioVal,
-				site.SiteName, site.Label, site.PlanName,
+				site.SiteName, site.Label, site.PlanName, site.Account,
 			))
 		}
 	}
@@ -270,6 +271,23 @@ func executeTerminusCommand(args ...string) ([]byte, error) {
 	return output, nil
 }
 
+func authenticateWithToken(token string) error {
+	log.Printf("Authenticating with machine token...")
+	_, err := executeTerminusCommand("auth:login", "--machine-token="+token)
+	if err != nil {
+		return fmt.Errorf("authentication failed: %w", err)
+	}
+	return nil
+}
+
+func getAccountID(token string) string {
+	// Return last 8 characters of token for identification
+	if len(token) >= 8 {
+		return token[len(token)-8:]
+	}
+	return token
+}
+
 func fetchSiteInfo(siteName string) (*SiteInfo, error) {
 	log.Printf("Fetching site info for %s...", siteName)
 	output, err := executeTerminusCommand("site:info", siteName, "--format=json")
@@ -323,44 +341,79 @@ func main() {
 	port := flag.String("port", "8080", "HTTP server port (default: 8080)")
 	flag.Parse()
 
-	// Fetch all sites from Terminus
-	siteList, err := fetchAllSites()
-	if err != nil {
-		log.Fatalf("Failed to fetch site list: %v", err)
+	// Read machine tokens from environment variable
+	tokensEnv := os.Getenv("PANTHEON_MACHINE_TOKENS")
+	if tokensEnv == "" {
+		log.Fatal("PANTHEON_MACHINE_TOKENS environment variable is not set")
 	}
 
-	log.Printf("Found %d sites", len(siteList))
+	// Split tokens by space
+	tokens := strings.Fields(tokensEnv)
+	if len(tokens) == 0 {
+		log.Fatal("No tokens found in PANTHEON_MACHINE_TOKENS")
+	}
 
-	// Collect metrics for all accessible sites
+	log.Printf("Found %d Pantheon account(s) to process", len(tokens))
+
+	// Collect metrics for all accounts and sites
 	var allSiteMetrics []SiteMetrics
-	successCount := 0
-	failCount := 0
+	totalSuccessCount := 0
+	totalFailCount := 0
 
-	for _, site := range siteList {
-		log.Printf("Processing site: %s (plan: %s)", site.Name, site.PlanName)
+	for tokenIdx, token := range tokens {
+		accountID := getAccountID(token)
+		log.Printf("Processing account %d/%d (ID: %s)", tokenIdx+1, len(tokens), accountID)
 
-		// Fetch metrics for this site
-		metricsData, err := fetchMetricsData(site.Name, *environment)
-		if err != nil {
-			log.Printf("Warning: Failed to fetch metrics for %s: %v", site.Name, err)
-			failCount++
+		// Authenticate with this token
+		if err := authenticateWithToken(token); err != nil {
+			log.Printf("Warning: Failed to authenticate account %s: %v", accountID, err)
 			continue
 		}
 
-		// Create SiteMetrics entry
-		siteMetrics := SiteMetrics{
-			SiteName:    site.Name,
-			Label:       site.Name, // site:list doesn't provide a label field, using name
-			PlanName:    site.PlanName,
-			MetricsData: metricsData,
+		// Fetch all sites for this account
+		siteList, err := fetchAllSites()
+		if err != nil {
+			log.Printf("Warning: Failed to fetch site list for account %s: %v", accountID, err)
+			continue
 		}
 
-		allSiteMetrics = append(allSiteMetrics, siteMetrics)
-		successCount++
-		log.Printf("Successfully loaded %d metric entries for %s", len(metricsData), site.Name)
+		log.Printf("Account %s: Found %d sites", accountID, len(siteList))
+
+		// Collect metrics for all accessible sites in this account
+		successCount := 0
+		failCount := 0
+
+		for _, site := range siteList {
+			log.Printf("Account %s: Processing site %s (plan: %s)", accountID, site.Name, site.PlanName)
+
+			// Fetch metrics for this site
+			metricsData, err := fetchMetricsData(site.Name, *environment)
+			if err != nil {
+				log.Printf("Warning: Failed to fetch metrics for %s.%s: %v", accountID, site.Name, err)
+				failCount++
+				continue
+			}
+
+			// Create SiteMetrics entry with account label
+			siteMetrics := SiteMetrics{
+				SiteName:    site.Name,
+				Label:       site.Name, // site:list doesn't provide a label field, using name
+				PlanName:    site.PlanName,
+				Account:     accountID,
+				MetricsData: metricsData,
+			}
+
+			allSiteMetrics = append(allSiteMetrics, siteMetrics)
+			successCount++
+			log.Printf("Account %s: Successfully loaded %d metric entries for %s", accountID, len(metricsData), site.Name)
+		}
+
+		log.Printf("Account %s: Metrics collection complete: %d successful, %d failed", accountID, successCount, failCount)
+		totalSuccessCount += successCount
+		totalFailCount += failCount
 	}
 
-	log.Printf("Metrics collection complete: %d successful, %d failed", successCount, failCount)
+	log.Printf("Overall metrics collection complete: %d successful, %d failed across %d accounts", totalSuccessCount, totalFailCount, len(tokens))
 
 	if len(allSiteMetrics) == 0 {
 		log.Fatal("No site metrics were collected. Cannot start exporter.")
@@ -385,13 +438,14 @@ func main() {
 <body>
 <h1>Pantheon Metrics Exporter</h1>
 <p><strong>Environment:</strong> %s</p>
+<p><strong>Accounts monitored:</strong> %d</p>
 <p><strong>Sites monitored:</strong> %d</p>
 <ul>
-`, *environment, len(allSiteMetrics))
+`, *environment, len(tokens), len(allSiteMetrics))
 
 		for _, site := range allSiteMetrics {
-			fmt.Fprintf(w, "<li>%s (plan: %s, %d metrics)</li>\n",
-				site.SiteName, site.PlanName, len(site.MetricsData))
+			fmt.Fprintf(w, "<li>[%s] %s (plan: %s, %d metrics)</li>\n",
+				site.Account, site.SiteName, site.PlanName, len(site.MetricsData))
 		}
 
 		fmt.Fprintf(w, `

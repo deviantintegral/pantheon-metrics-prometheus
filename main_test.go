@@ -234,12 +234,14 @@ func TestNewPantheonCollector(t *testing.T) {
 			SiteName:    "site1",
 			Label:       "Site 1",
 			PlanName:    "Basic",
+			Account:     "account1",
 			MetricsData: metricsData,
 		},
 		{
 			SiteName:    "site2",
 			Label:       "Site 2",
 			PlanName:    "Performance",
+			Account:     "account2",
 			MetricsData: metricsData,
 		},
 	}
@@ -251,5 +253,22 @@ func TestNewPantheonCollector(t *testing.T) {
 
 	if len(collector.sites) != 2 {
 		t.Errorf("Expected 2 sites in collector, got %d", len(collector.sites))
+	}
+}
+
+func TestGetAccountID(t *testing.T) {
+	// Test with full-length token
+	token := "1234567890abcdef1234567890abcdef"
+	accountID := getAccountID(token)
+	expected := "90abcdef"
+	if accountID != expected {
+		t.Errorf("Expected account ID %s, got %s", expected, accountID)
+	}
+
+	// Test with short token
+	shortToken := "abc"
+	accountID = getAccountID(shortToken)
+	if accountID != shortToken {
+		t.Errorf("Expected account ID %s, got %s", shortToken, accountID)
 	}
 }
