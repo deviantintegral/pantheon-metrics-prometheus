@@ -14,6 +14,7 @@ type RefreshManager struct {
 	refreshInterval time.Duration
 	collector       *PantheonCollector
 	mu              sync.Mutex
+	discoveredSites map[string]bool // Track sites discovered since app start (account:site format)
 }
 
 // NewRefreshManager creates a new refresh manager
@@ -23,7 +24,18 @@ func NewRefreshManager(tokens []string, environment string, refreshInterval time
 		environment:     environment,
 		refreshInterval: refreshInterval,
 		collector:       collector,
+		discoveredSites: make(map[string]bool),
 	}
+}
+
+// InitializeDiscoveredSites populates the discovered sites map with initial sites
+func (rm *RefreshManager) InitializeDiscoveredSites() {
+	sites := rm.collector.GetSites()
+	for _, site := range sites {
+		key := site.Account + ":" + site.SiteName
+		rm.discoveredSites[key] = true
+	}
+	log.Printf("Initialized with %d discovered sites", len(rm.discoveredSites))
 }
 
 // Start begins the periodic refresh process
@@ -50,6 +62,19 @@ func (rm *RefreshManager) refreshSiteListsPeriodically() {
 func (rm *RefreshManager) refreshAllSiteLists() {
 	var allSiteMetrics []SiteMetrics
 
+	// Get current sites to track changes
+	existingSites := rm.collector.GetSites()
+	currentSitesMap := make(map[string]bool)
+	for _, site := range existingSites {
+		key := site.Account + ":" + site.SiteName
+		currentSitesMap[key] = true
+	}
+
+	// Track new sites for this refresh
+	newSitesMap := make(map[string]bool)
+	var addedSites []string
+	totalSitesFound := 0
+
 	for _, token := range rm.tokens {
 		accountID := getAccountID(token)
 		log.Printf("Refreshing site list for account %s", accountID)
@@ -67,10 +92,9 @@ func (rm *RefreshManager) refreshAllSiteLists() {
 			continue
 		}
 
-		log.Printf("Account %s: Found %d sites", accountID, len(siteList))
+		totalSitesFound += len(siteList)
 
 		// Get existing metrics for sites
-		existingSites := rm.collector.GetSites()
 		existingMetricsMap := make(map[string]map[string]MetricData)
 		for _, site := range existingSites {
 			key := site.Account + ":" + site.SiteName
@@ -80,9 +104,20 @@ func (rm *RefreshManager) refreshAllSiteLists() {
 		// Create site metrics entries, preserving existing metrics data
 		for _, site := range siteList {
 			key := accountID + ":" + site.Name
+			newSitesMap[key] = true
+
 			metricsData := existingMetricsMap[key]
 			if metricsData == nil {
 				metricsData = make(map[string]MetricData)
+			}
+
+			// Check if this is a newly added site (not in current list)
+			if !currentSitesMap[key] {
+				// Check if it's newly discovered (never seen before)
+				if !rm.discoveredSites[key] {
+					addedSites = append(addedSites, key)
+					rm.discoveredSites[key] = true
+				}
 			}
 
 			siteMetrics := SiteMetrics{
@@ -96,9 +131,26 @@ func (rm *RefreshManager) refreshAllSiteLists() {
 		}
 	}
 
+	// Find removed sites
+	var removedSites []string
+	for key := range currentSitesMap {
+		if !newSitesMap[key] {
+			removedSites = append(removedSites, key)
+		}
+	}
+
+	// Update collector
 	if len(allSiteMetrics) > 0 {
 		rm.collector.UpdateSites(allSiteMetrics)
-		log.Printf("Site list refresh complete: now monitoring %d sites", len(allSiteMetrics))
+		log.Printf("Site list updated: %d sites found", totalSitesFound)
+
+		if len(addedSites) > 0 {
+			log.Printf("Sites added: %v", addedSites)
+		}
+
+		if len(removedSites) > 0 {
+			log.Printf("Sites removed: %v", removedSites)
+		}
 	}
 }
 
@@ -188,5 +240,5 @@ func (rm *RefreshManager) refreshSiteMetrics(accountID, siteName string) {
 
 	// Update the collector
 	rm.collector.UpdateSiteMetrics(accountID, siteName, metricsData)
-	log.Printf("Successfully refreshed metrics for %s.%s (%d entries)", accountID, siteName, len(metricsData))
+	log.Printf("Updated metrics for site %s.%s", accountID, siteName)
 }

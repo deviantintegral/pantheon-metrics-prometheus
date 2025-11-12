@@ -16,4 +16,7 @@ go.work
 
 # Application binary
 pantheon-metrics-exporter
+pantheon-metrics-prometheus
+
+# Test coverage
 *.html
