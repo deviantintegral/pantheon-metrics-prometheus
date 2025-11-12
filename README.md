@@ -48,13 +48,14 @@ To create a machine token:
 ### Running the Exporter
 
 ```bash
-./pantheon-metrics-exporter [-env=ENVIRONMENT] [-port=PORT]
+./pantheon-metrics-exporter [-env=ENVIRONMENT] [-port=PORT] [-refreshInterval=MINUTES]
 ```
 
 ### Command-Line Flags
 
 - `-env` (optional): Pantheon environment to monitor (default: `live`)
 - `-port` (optional): HTTP server port (default: `8080`)
+- `-refreshInterval` (optional): How often to refresh data in minutes (default: `60`)
 
 ### Examples
 
@@ -70,9 +71,15 @@ export PANTHEON_MACHINE_TOKENS="your-token"
 # Use a custom port
 export PANTHEON_MACHINE_TOKENS="your-token"
 ./pantheon-metrics-exporter -port=9090
+
+# Refresh data every 30 minutes
+export PANTHEON_MACHINE_TOKENS="your-token"
+./pantheon-metrics-exporter -refreshInterval=30
 ```
 
 ## How It Works
+
+### Initial Startup
 
 1. On startup, the exporter reads machine tokens from the `PANTHEON_MACHINE_TOKENS` environment variable
 2. For each token, the exporter:
@@ -83,6 +90,17 @@ export PANTHEON_MACHINE_TOKENS="your-token"
 3. Sites or accounts that are inaccessible or return errors are logged and skipped
 4. Successfully collected metrics from all accounts are aggregated and exposed via the `/metrics` endpoint
 5. The exporter shows a summary page at the root URL listing all monitored accounts and sites
+
+### Periodic Refresh
+
+The exporter automatically refreshes data at the interval specified by `-refreshInterval`:
+
+1. **Site List Refresh**: Every refresh interval, the exporter re-runs `terminus site:list` for all accounts to detect added or removed sites
+2. **Metrics Refresh**: Metrics are refreshed using a queue-based system to prevent API stampedes:
+   - Sites are distributed evenly across the refresh interval
+   - For example, with 100 sites and a 60-minute interval: 2 sites are processed every minute (100 / 60 = 1.67, rounded up)
+   - This ensures steady API usage rather than bursts of requests
+   - The queue automatically cycles through all sites continuously
 
 ## Metrics Exposed
 
@@ -127,12 +145,12 @@ scrape_configs:
   - job_name: 'pantheon-metrics'
     static_configs:
       - targets: ['localhost:8080']
-    # Increase scrape interval since fetching from Terminus API can be slow
-    scrape_interval: 15m
-    scrape_timeout: 5m
+    # Scrape interval can be frequent since the exporter handles refresh internally
+    scrape_interval: 1m
+    scrape_timeout: 30s
 ```
 
-**Important:** Consider using a longer scrape interval (10-15 minutes) to avoid excessive API calls to Terminus, especially when monitoring many sites.
+**Note:** With the built-in refresh mechanism, Prometheus can scrape frequently (e.g., every 1 minute) without causing API stampedes. The exporter manages Terminus API calls internally using the queue-based refresh system.
 
 ## Error Handling
 
@@ -163,27 +181,29 @@ The application consists of several key components:
 
 - **SiteListEntry**: Represents a site from `terminus site:list`
 - **SiteMetrics**: Holds metrics data for a specific site including account identifier
-- **PantheonCollector**: Implements the Prometheus Collector interface for multiple sites across multiple accounts
+- **PantheonCollector**: Thread-safe Prometheus Collector for multiple sites across multiple accounts
+- **RefreshManager**: Manages periodic site list and metrics refresh
 - **authenticateWithToken()**: Authenticates with Terminus using a machine token
 - **getAccountID()**: Generates an account identifier from a token (last 8 chars)
 - **fetchAllSites()**: Retrieves all sites from Terminus for the currently authenticated account
 - **fetchMetricsData()**: Fetches metrics for a specific site/environment
 
-The main loop processes each machine token sequentially:
-1. Authenticate with token
-2. Fetch all sites for that account
-3. Collect metrics for each site
-4. Label metrics with account identifier
+The application flow:
+1. **Startup**: Authenticate with each token, fetch sites, collect initial metrics
+2. **Site List Refresh**: Every refresh interval, update the list of monitored sites
+3. **Metrics Queue**: Continuously process metrics updates distributed evenly over the refresh interval
+4. **Thread Safety**: All collector updates use mutex locks to prevent race conditions
 
 ## Future Enhancements
 
-- Periodic metric refresh with configurable intervals (currently metrics are fetched once at startup)
 - Support for fetching `terminus site:info` to get proper site labels
 - Concurrent metric fetching for faster startup
-- Metrics endpoint to show last update time and collection status
-- Support for filtering which sites to monitor
+- Metrics endpoint to show last update time and collection status per site
+- Support for filtering which sites to monitor (include/exclude patterns)
+- Configurable queue processing rate (currently fixed at 1-minute intervals)
 - Prometheus service discovery integration
 - Containerization with Docker
+- Health check endpoint
 
 ## Troubleshooting
 
