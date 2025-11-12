@@ -24,6 +24,13 @@ type MetricData struct {
 	CacheHitRatio string `json:"cache_hit_ratio"`
 }
 
+// SiteConfig represents the site configuration
+type SiteConfig struct {
+	Name     string `json:"name"`
+	Label    string `json:"label"`
+	PlanName string `json:"plan_name"`
+}
+
 // PantheonCollector collects Pantheon metrics
 type PantheonCollector struct {
 	metricsData map[string]MetricData
@@ -158,19 +165,39 @@ func loadMetricsData(filename string) (map[string]MetricData, error) {
 	return metricsData, nil
 }
 
+func loadSiteConfig(filename string) (*SiteConfig, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file: %w", err)
+	}
+
+	var config SiteConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %w", err)
+	}
+
+	return &config, nil
+}
+
 func main() {
+	// Load site configuration
+	siteConfig, err := loadSiteConfig("site-config.json")
+	if err != nil {
+		log.Fatalf("Failed to load site config: %v", err)
+	}
+
 	// Load metrics data from example file
 	metricsData, err := loadMetricsData("example-metrics.json")
 	if err != nil {
 		log.Fatalf("Failed to load metrics data: %v", err)
 	}
 
-	// Create collector with hardcoded labels
+	// Create collector with labels from config
 	collector := NewPantheonCollector(
 		metricsData,
-		"example1234",
-		"Example.com",
-		"Performance Small",
+		siteConfig.Name,
+		siteConfig.Label,
+		siteConfig.PlanName,
 	)
 
 	// Register the collector

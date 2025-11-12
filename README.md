@@ -40,19 +40,26 @@ The server will start on port 8080. Metrics are available at: `http://localhost:
 
 ## Configuration
 
-Currently, the application reads metrics from `example-metrics.json` in the same directory. The labels are hardcoded in the main function:
+The application requires two JSON files in the same directory:
 
-- `name`: "example1234"
-- `label`: "Example.com"
-- `plan`: "Performance Small"
+1. **site-config.json** - Contains site labels and identification:
+   ```json
+   {
+       "name": "site1234",
+       "label": "Example Site",
+       "plan_name": "Performance Small"
+   }
+   ```
+
+2. **example-metrics.json** - Contains metrics data from `terminus env:metrics --format=json`
 
 ## Example Metrics Output
 
 ```
 # HELP pantheon_visits Number of visits
 # TYPE pantheon_visits gauge
-pantheon_visits{label="Example.com",name="example1234",plan="Performance Small"} 837 1762732800000
-pantheon_visits{label="Example.com",name="example1234",plan="Performance Small"} 824 1762819200000
+pantheon_visits{label="Example Site",name="site1234",plan="Performance Small"} 837 1762732800000
+pantheon_visits{label="Example Site",name="site1234",plan="Performance Small"} 824 1762819200000
 ```
 
 Note: The timestamps (e.g., 1762732800000) are Unix timestamps in milliseconds, as required by Prometheus for historical metrics.
@@ -60,6 +67,6 @@ Note: The timestamps (e.g., 1762732800000) are Unix timestamps in milliseconds, 
 ## Future Enhancements
 
 - Direct integration with `terminus env:metrics --format=json` command
-- Configuration file for labels and settings
 - Support for multiple sites
 - Automated metric refresh intervals
+- Command-line flags for custom config file paths
