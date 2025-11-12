@@ -1,0 +1,16 @@
+{
+    "id": "site1234-abcd-1234-5678-123456789abc",
+    "name": "site1234",
+    "label": "Example Site",
+    "created": "2024-01-15T10:30:00",
+    "framework": "drupal8",
+    "organization": "org-id-12345",
+    "service_level": "free",
+    "upstream": "drupal-recommended",
+    "php_version": "8.1",
+    "holder_type": "user",
+    "holder_id": "user-id-12345",
+    "owner": "owner-id-12345",
+    "frozen": false,
+    "plan_name": "Performance Small"
+}

@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -24,11 +26,29 @@ type MetricData struct {
 	CacheHitRatio string `json:"cache_hit_ratio"`
 }
 
-// SiteConfig represents the site configuration
+// SiteConfig represents the site configuration (legacy format)
 type SiteConfig struct {
 	Name     string `json:"name"`
 	Label    string `json:"label"`
 	PlanName string `json:"plan_name"`
+}
+
+// SiteInfo represents site information from terminus site:info
+type SiteInfo struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Label        string `json:"label"`
+	Created      string `json:"created"`
+	Framework    string `json:"framework"`
+	Organization string `json:"organization"`
+	ServiceLevel string `json:"service_level"`
+	Upstream     string `json:"upstream"`
+	PHPVersion   string `json:"php_version"`
+	HolderType   string `json:"holder_type"`
+	HolderID     string `json:"holder_id"`
+	Owner        string `json:"owner"`
+	Frozen       bool   `json:"frozen"`
+	PlanName     string `json:"plan_name"`
 }
 
 // PantheonCollector collects Pantheon metrics
@@ -179,25 +199,96 @@ func loadSiteConfig(filename string) (*SiteConfig, error) {
 	return &config, nil
 }
 
+func loadSiteInfo(filename string) (*SiteInfo, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file: %w", err)
+	}
+
+	return parseSiteInfo(data)
+}
+
+func parseSiteInfo(data []byte) (*SiteInfo, error) {
+	var siteInfo SiteInfo
+	if err := json.Unmarshal(data, &siteInfo); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %w", err)
+	}
+
+	return &siteInfo, nil
+}
+
+func parseMetricsData(data []byte) (map[string]MetricData, error) {
+	var metricsData map[string]MetricData
+	if err := json.Unmarshal(data, &metricsData); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %w", err)
+	}
+
+	return metricsData, nil
+}
+
+func executeTerminusCommand(args ...string) ([]byte, error) {
+	cmd := exec.Command("terminus", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("terminus command failed: %w\nOutput: %s", err, string(output))
+	}
+	return output, nil
+}
+
+func fetchSiteInfo(siteName string) (*SiteInfo, error) {
+	log.Printf("Fetching site info for %s...", siteName)
+	output, err := executeTerminusCommand("site:info", siteName, "--format=json")
+	if err != nil {
+		return nil, err
+	}
+
+	return parseSiteInfo(output)
+}
+
+func fetchMetricsData(siteName, environment string) (map[string]MetricData, error) {
+	log.Printf("Fetching metrics for %s.%s...", siteName, environment)
+	output, err := executeTerminusCommand("env:metrics", fmt.Sprintf("%s.%s", siteName, environment), "--format=json")
+	if err != nil {
+		return nil, err
+	}
+
+	return parseMetricsData(output)
+}
+
 func main() {
-	// Load site configuration
-	siteConfig, err := loadSiteConfig("site-config.json")
-	if err != nil {
-		log.Fatalf("Failed to load site config: %v", err)
+	// Parse command-line flags
+	siteName := flag.String("site", "", "Pantheon site name (required)")
+	environment := flag.String("env", "live", "Pantheon environment (default: live)")
+	port := flag.String("port", "8080", "HTTP server port (default: 8080)")
+	flag.Parse()
+
+	if *siteName == "" {
+		log.Fatal("Error: -site flag is required")
 	}
 
-	// Load metrics data from example file
-	metricsData, err := loadMetricsData("example-metrics.json")
+	// Fetch site information from Terminus
+	siteInfo, err := fetchSiteInfo(*siteName)
 	if err != nil {
-		log.Fatalf("Failed to load metrics data: %v", err)
+		log.Fatalf("Failed to fetch site info: %v", err)
 	}
 
-	// Create collector with labels from config
+	log.Printf("Site: %s (%s)", siteInfo.Name, siteInfo.Label)
+	log.Printf("Plan: %s", siteInfo.PlanName)
+
+	// Fetch metrics data from Terminus
+	metricsData, err := fetchMetricsData(*siteName, *environment)
+	if err != nil {
+		log.Fatalf("Failed to fetch metrics data: %v", err)
+	}
+
+	log.Printf("Loaded %d metric entries", len(metricsData))
+
+	// Create collector with data from Terminus
 	collector := NewPantheonCollector(
 		metricsData,
-		siteConfig.Name,
-		siteConfig.Label,
-		siteConfig.PlanName,
+		siteInfo.Name,
+		siteInfo.Label,
+		siteInfo.PlanName,
 	)
 
 	// Register the collector
@@ -215,17 +306,20 @@ func main() {
 <head><title>Pantheon Metrics Exporter</title></head>
 <body>
 <h1>Pantheon Metrics Exporter</h1>
+<p><strong>Site:</strong> %s (%s)</p>
+<p><strong>Environment:</strong> %s</p>
+<p><strong>Plan:</strong> %s</p>
 <p>Metrics are available at <a href="/metrics">/metrics</a></p>
 </body>
 </html>
-`)
+`, siteInfo.Label, siteInfo.Name, *environment, siteInfo.PlanName)
 	})
 
 	// Start server
-	port := ":8080"
-	log.Printf("Starting Pantheon metrics exporter on %s", port)
-	log.Printf("Metrics available at http://localhost%s/metrics", port)
-	if err := http.ListenAndServe(port, nil); err != nil {
+	serverAddr := ":" + *port
+	log.Printf("Starting Pantheon metrics exporter on %s", serverAddr)
+	log.Printf("Metrics available at http://localhost%s/metrics", serverAddr)
+	if err := http.ListenAndServe(serverAddr, nil); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
 }
