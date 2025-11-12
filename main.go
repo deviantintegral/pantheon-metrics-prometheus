@@ -138,6 +138,7 @@ func main() {
 	// Start refresh manager
 	refreshIntervalDuration := time.Duration(*refreshInterval) * time.Minute
 	refreshManager := NewRefreshManager(tokens, *environment, refreshIntervalDuration, collector)
+	refreshManager.InitializeDiscoveredSites()
 	refreshManager.Start()
 	log.Printf("Refresh manager started (interval: %d minutes)", *refreshInterval)
 
