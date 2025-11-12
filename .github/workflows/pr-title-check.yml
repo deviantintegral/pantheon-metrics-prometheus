@@ -35,6 +35,7 @@ jobs:
           requireScope: false
           # Allow custom scopes
           scopes: |
+            deps
             metrics
             collector
             refresh
