@@ -1,20 +1,21 @@
 # Pantheon Metrics Prometheus Exporter
 
-A Go application that fetches Pantheon site metrics using the Terminus CLI and exposes them in Prometheus format for scraping.
+A Go application that fetches Pantheon site metrics using the Terminus CLI and exposes them in Prometheus format for scraping. The exporter automatically discovers all sites accessible to your Terminus account and collects metrics for each one.
 
 ## Features
 
-- Fetches site information using `terminus site:info`
-- Fetches metrics using `terminus env:metrics`
+- Automatically discovers all sites using `terminus site:list`
+- Fetches metrics for all accessible sites using `terminus env:metrics`
 - Exposes metrics via HTTP for Prometheus scraping
 - Includes historical timestamps for each metric
-- Automatically extracts site labels (name, label, plan) from Terminus
+- Gracefully handles inaccessible sites
+- Supports monitoring multiple sites in a single exporter instance
 
 ## Prerequisites
 
 - Go 1.16 or later
 - [Terminus CLI](https://pantheon.io/docs/terminus/install) installed and authenticated
-- Pantheon site access with appropriate permissions
+- Pantheon account with access to one or more sites
 
 ## Installation
 
@@ -24,34 +25,41 @@ go build -o pantheon-metrics-exporter
 
 ## Usage
 
-The application requires the Terminus CLI to be installed and authenticated. Run:
+The application automatically fetches all sites from your Terminus account. Simply run:
 
 ```bash
-./pantheon-metrics-exporter -site=SITENAME [-env=ENVIRONMENT] [-port=PORT]
+./pantheon-metrics-exporter [-env=ENVIRONMENT] [-port=PORT]
 ```
 
 ### Command-Line Flags
 
-- `-site` (required): Pantheon site name
-- `-env` (optional): Pantheon environment (default: `live`)
+- `-env` (optional): Pantheon environment to monitor (default: `live`)
 - `-port` (optional): HTTP server port (default: `8080`)
 
 ### Examples
 
 ```bash
-# Export metrics for the live environment
-./pantheon-metrics-exporter -site=my-site
+# Export metrics for all sites in the live environment
+./pantheon-metrics-exporter
 
-# Export metrics for the dev environment
-./pantheon-metrics-exporter -site=my-site -env=dev
+# Export metrics for all sites in the dev environment
+./pantheon-metrics-exporter -env=dev
 
 # Use a custom port
-./pantheon-metrics-exporter -site=my-site -port=9090
+./pantheon-metrics-exporter -port=9090
 ```
+
+## How It Works
+
+1. On startup, the exporter runs `terminus site:list --format=json` to discover all sites
+2. For each site, it attempts to fetch metrics using `terminus env:metrics SITE.ENV --format=json`
+3. Sites that are inaccessible or return errors are logged and skipped
+4. Successfully collected metrics are exposed via the `/metrics` endpoint
+5. The exporter shows a summary page at the root URL listing all monitored sites
 
 ## Metrics Exposed
 
-The following metrics are exposed:
+The following metrics are exposed for each site:
 
 - `pantheon_visits` - Number of visits
 - `pantheon_pages_served` - Number of pages served
@@ -60,22 +68,24 @@ The following metrics are exposed:
 - `pantheon_cache_hit_ratio` - Cache hit ratio as percentage
 
 Each metric includes the following labels:
-- `name` - Site identifier (from `terminus site:info`)
-- `label` - Site display name (from `terminus site:info`)
-- `plan` - Pantheon plan type (from `terminus site:info`)
+- `name` - Site identifier (from `terminus site:list`)
+- `label` - Site name (currently same as name, as site:list doesn't provide a separate display name)
+- `plan` - Pantheon plan type (from `terminus site:list`)
 
 ## Example Metrics Output
 
 ```
 # HELP pantheon_visits Number of visits
 # TYPE pantheon_visits gauge
-pantheon_visits{label="Example Site",name="site1234",plan="Performance Small"} 837 1762732800000
-pantheon_visits{label="Example Site",name="site1234",plan="Performance Small"} 824 1762819200000
+pantheon_visits{label="site1234",name="site1234",plan="Performance Small"} 837 1762732800000
+pantheon_visits{label="site1234",name="site1234",plan="Performance Small"} 824 1762819200000
+pantheon_visits{label="site5678",name="site5678",plan="Basic"} 456 1762732800000
+pantheon_visits{label="site5678",name="site5678",plan="Basic"} 478 1762819200000
 
 # HELP pantheon_cache_hit_ratio Cache hit ratio as percentage
 # TYPE pantheon_cache_hit_ratio gauge
-pantheon_cache_hit_ratio{label="Example Site",name="site1234",plan="Performance Small"} 3.86 1762732800000
-pantheon_cache_hit_ratio{label="Example Site",name="site1234",plan="Performance Small"} 5.12 1762819200000
+pantheon_cache_hit_ratio{label="site1234",name="site1234",plan="Performance Small"} 3.86 1762732800000
+pantheon_cache_hit_ratio{label="site1234",name="site1234",plan="Performance Small"} 5.12 1762819200000
 ```
 
 Note: The timestamps (e.g., 1762732800000) are Unix timestamps in milliseconds, as required by Prometheus for historical metrics.
@@ -89,9 +99,19 @@ scrape_configs:
   - job_name: 'pantheon-metrics'
     static_configs:
       - targets: ['localhost:8080']
-    # Increase scrape interval if you're rate-limited by Terminus
-    scrape_interval: 5m
+    # Increase scrape interval since fetching from Terminus API can be slow
+    scrape_interval: 15m
+    scrape_timeout: 5m
 ```
+
+**Important:** Consider using a longer scrape interval (10-15 minutes) to avoid excessive API calls to Terminus, especially when monitoring many sites.
+
+## Error Handling
+
+The exporter handles errors gracefully:
+- Sites that fail to return metrics are logged with a warning and skipped
+- The exporter will start successfully as long as at least one site returns metrics
+- Individual metric parsing errors are logged but don't prevent other metrics from being collected
 
 ## Development
 
@@ -106,15 +126,44 @@ go test -v
 Test data is located in the `testdata/` directory:
 - `example-metrics.json` - Sample metrics output from `terminus env:metrics`
 - `site-info.json` - Sample site info output from `terminus site:info`
+- `site-list.json` - Sample site list output from `terminus site:list`
 - `site-config.json` - Legacy configuration format (for backwards compatibility)
+
+## Architecture
+
+The application consists of several key components:
+
+- **SiteListEntry**: Represents a site from `terminus site:list`
+- **SiteMetrics**: Holds metrics data for a specific site
+- **PantheonCollector**: Implements the Prometheus Collector interface for multiple sites
+- **fetchAllSites()**: Retrieves all sites from Terminus
+- **fetchMetricsData()**: Fetches metrics for a specific site/environment
 
 ## Future Enhancements
 
-- Periodic metric refresh with configurable intervals
-- Support for multiple sites in a single instance
-- Caching to reduce Terminus API calls
+- Periodic metric refresh with configurable intervals (currently metrics are fetched once at startup)
+- Support for fetching `terminus site:info` to get proper site labels
+- Concurrent metric fetching for faster startup
+- Metrics endpoint to show last update time and collection status
+- Support for filtering which sites to monitor
 - Prometheus service discovery integration
 - Containerization with Docker
+
+## Troubleshooting
+
+### No sites found
+- Ensure Terminus is authenticated: `terminus auth:whoami`
+- Verify you have access to sites: `terminus site:list`
+
+### Metrics not appearing for some sites
+- Check the application logs for warning messages
+- Verify you have permission to view metrics for those sites
+- Try running `terminus env:metrics SITE.ENV --format=json` manually
+
+### Slow startup
+- This is normal when monitoring many sites
+- Each site requires a separate API call to Terminus
+- Consider the concurrent fetching enhancement mentioned above
 
 ## License
 

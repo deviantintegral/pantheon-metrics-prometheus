@@ -1,0 +1,24 @@
+{
+    "8BF85E45-C393-4DFD-8B3A-3AEAAC46AA4B": {
+        "name": "site1234",
+        "id": "789F4FDD-FC93-4528-B20A-92ECFCF1E1F2",
+        "plan_name": "Performance Small",
+        "framework": "drupal8",
+        "region": "United States",
+        "owner": "4AC7AF1B-9D11-452C-9113-205E6631AB5D",
+        "created": 1581015607,
+        "memberships": "6789F4FDD-FC93-4528-B20A-92ECFCF1E1F2: Example Organization",
+        "frozen": false
+    },
+    "9CF85E45-D393-5EFE-9C4B-4BFBBDB57BC5": {
+        "name": "site5678",
+        "id": "890G5GEE-GD04-5639-C31B-03FDGDG2F2G3",
+        "plan_name": "Basic",
+        "framework": "wordpress",
+        "region": "Canada",
+        "owner": "5BD8BG2C-0E22-563D-0224-316F7F42BC6E",
+        "created": 1592126708,
+        "memberships": "7890G5GEE-GD04-5639-C31B-03FDGDG2F2G3: Another Organization",
+        "frozen": false
+    }
+}

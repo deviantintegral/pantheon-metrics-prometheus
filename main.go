@@ -51,27 +51,42 @@ type SiteInfo struct {
 	PlanName     string `json:"plan_name"`
 }
 
-// PantheonCollector collects Pantheon metrics
-type PantheonCollector struct {
-	metricsData map[string]MetricData
-	siteName    string
-	siteLabel   string
-	sitePlan    string
+// SiteListEntry represents a single site from terminus site:list
+type SiteListEntry struct {
+	Name        string `json:"name"`
+	ID          string `json:"id"`
+	PlanName    string `json:"plan_name"`
+	Framework   string `json:"framework"`
+	Region      string `json:"region"`
+	Owner       string `json:"owner"`
+	Created     int64  `json:"created"`
+	Memberships string `json:"memberships"`
+	Frozen      bool   `json:"frozen"`
+}
 
-	visits      *prometheus.Desc
-	pagesServed *prometheus.Desc
-	cacheHits   *prometheus.Desc
-	cacheMisses *prometheus.Desc
+// SiteMetrics holds metrics data for a specific site
+type SiteMetrics struct {
+	SiteName    string
+	Label       string
+	PlanName    string
+	MetricsData map[string]MetricData
+}
+
+// PantheonCollector collects Pantheon metrics for multiple sites
+type PantheonCollector struct {
+	sites []SiteMetrics
+
+	visits        *prometheus.Desc
+	pagesServed   *prometheus.Desc
+	cacheHits     *prometheus.Desc
+	cacheMisses   *prometheus.Desc
 	cacheHitRatio *prometheus.Desc
 }
 
 // NewPantheonCollector creates a new Pantheon metrics collector
-func NewPantheonCollector(metricsData map[string]MetricData, siteName, siteLabel, sitePlan string) *PantheonCollector {
+func NewPantheonCollector(sites []SiteMetrics) *PantheonCollector {
 	return &PantheonCollector{
-		metricsData: metricsData,
-		siteName:    siteName,
-		siteLabel:   siteLabel,
-		sitePlan:    sitePlan,
+		sites: sites,
 		visits: prometheus.NewDesc(
 			"pantheon_visits",
 			"Number of visits",
@@ -116,58 +131,60 @@ func (c *PantheonCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements prometheus.Collector
 func (c *PantheonCollector) Collect(ch chan<- prometheus.Metric) {
-	for timestampStr, data := range c.metricsData {
-		// Convert Unix timestamp string to time.Time
-		timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
-		if err != nil {
-			log.Printf("Error parsing timestamp %s: %v", timestampStr, err)
-			continue
+	for _, site := range c.sites {
+		for timestampStr, data := range site.MetricsData {
+			// Convert Unix timestamp string to time.Time
+			timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
+			if err != nil {
+				log.Printf("Error parsing timestamp %s: %v", timestampStr, err)
+				continue
+			}
+			ts := time.Unix(timestamp, 0)
+
+			// Parse cache hit ratio (remove % sign and convert to float)
+			cacheHitRatioStr := strings.TrimSuffix(data.CacheHitRatio, "%")
+			cacheHitRatioVal, err := strconv.ParseFloat(cacheHitRatioStr, 64)
+			if err != nil {
+				log.Printf("Error parsing cache hit ratio %s: %v", data.CacheHitRatio, err)
+				cacheHitRatioVal = 0
+			}
+
+			// Create metrics with labels and timestamps
+			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
+				c.visits,
+				prometheus.GaugeValue,
+				float64(data.Visits),
+				site.SiteName, site.Label, site.PlanName,
+			))
+
+			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
+				c.pagesServed,
+				prometheus.GaugeValue,
+				float64(data.PagesServed),
+				site.SiteName, site.Label, site.PlanName,
+			))
+
+			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
+				c.cacheHits,
+				prometheus.GaugeValue,
+				float64(data.CacheHits),
+				site.SiteName, site.Label, site.PlanName,
+			))
+
+			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
+				c.cacheMisses,
+				prometheus.GaugeValue,
+				float64(data.CacheMisses),
+				site.SiteName, site.Label, site.PlanName,
+			))
+
+			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
+				c.cacheHitRatio,
+				prometheus.GaugeValue,
+				cacheHitRatioVal,
+				site.SiteName, site.Label, site.PlanName,
+			))
 		}
-		ts := time.Unix(timestamp, 0)
-
-		// Parse cache hit ratio (remove % sign and convert to float)
-		cacheHitRatioStr := strings.TrimSuffix(data.CacheHitRatio, "%")
-		cacheHitRatioVal, err := strconv.ParseFloat(cacheHitRatioStr, 64)
-		if err != nil {
-			log.Printf("Error parsing cache hit ratio %s: %v", data.CacheHitRatio, err)
-			cacheHitRatioVal = 0
-		}
-
-		// Create metrics with labels and timestamps
-		ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
-			c.visits,
-			prometheus.GaugeValue,
-			float64(data.Visits),
-			c.siteName, c.siteLabel, c.sitePlan,
-		))
-
-		ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
-			c.pagesServed,
-			prometheus.GaugeValue,
-			float64(data.PagesServed),
-			c.siteName, c.siteLabel, c.sitePlan,
-		))
-
-		ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
-			c.cacheHits,
-			prometheus.GaugeValue,
-			float64(data.CacheHits),
-			c.siteName, c.siteLabel, c.sitePlan,
-		))
-
-		ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
-			c.cacheMisses,
-			prometheus.GaugeValue,
-			float64(data.CacheMisses),
-			c.siteName, c.siteLabel, c.sitePlan,
-		))
-
-		ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
-			c.cacheHitRatio,
-			prometheus.GaugeValue,
-			cacheHitRatioVal,
-			c.siteName, c.siteLabel, c.sitePlan,
-		))
 	}
 }
 
@@ -226,6 +243,24 @@ func parseMetricsData(data []byte) (map[string]MetricData, error) {
 	return metricsData, nil
 }
 
+func parseSiteList(data []byte) (map[string]SiteListEntry, error) {
+	var siteList map[string]SiteListEntry
+	if err := json.Unmarshal(data, &siteList); err != nil {
+		return nil, fmt.Errorf("error parsing JSON: %w", err)
+	}
+
+	return siteList, nil
+}
+
+func loadSiteList(filename string) (map[string]SiteListEntry, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file: %w", err)
+	}
+
+	return parseSiteList(data)
+}
+
 func executeTerminusCommand(args ...string) ([]byte, error) {
 	cmd := exec.Command("terminus", args...)
 	output, err := cmd.CombinedOutput()
@@ -255,41 +290,84 @@ func fetchMetricsData(siteName, environment string) (map[string]MetricData, erro
 	return parseMetricsData(output)
 }
 
+func fetchAllSites() (map[string]SiteListEntry, error) {
+	log.Printf("Fetching all sites from Terminus...")
+	output, err := executeTerminusCommand("site:list", "--format=json")
+	if err != nil {
+		return nil, err
+	}
+
+	return parseSiteList(output)
+}
+
+func fetchSiteMetrics(siteName, environment string) (*SiteMetrics, error) {
+	// Fetch metrics data
+	metricsData, err := fetchMetricsData(siteName, environment)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch metrics: %w", err)
+	}
+
+	// For site:list, we don't get the label, so we'll use the site name as the label
+	// In a real scenario, you might want to fetch site:info for each site to get the proper label
+	return &SiteMetrics{
+		SiteName:    siteName,
+		Label:       siteName, // Using siteName as label since site:list doesn't provide it
+		PlanName:    "",       // Will be updated from site list
+		MetricsData: metricsData,
+	}, nil
+}
+
 func main() {
 	// Parse command-line flags
-	siteName := flag.String("site", "", "Pantheon site name (required)")
 	environment := flag.String("env", "live", "Pantheon environment (default: live)")
 	port := flag.String("port", "8080", "HTTP server port (default: 8080)")
 	flag.Parse()
 
-	if *siteName == "" {
-		log.Fatal("Error: -site flag is required")
-	}
-
-	// Fetch site information from Terminus
-	siteInfo, err := fetchSiteInfo(*siteName)
+	// Fetch all sites from Terminus
+	siteList, err := fetchAllSites()
 	if err != nil {
-		log.Fatalf("Failed to fetch site info: %v", err)
+		log.Fatalf("Failed to fetch site list: %v", err)
 	}
 
-	log.Printf("Site: %s (%s)", siteInfo.Name, siteInfo.Label)
-	log.Printf("Plan: %s", siteInfo.PlanName)
+	log.Printf("Found %d sites", len(siteList))
 
-	// Fetch metrics data from Terminus
-	metricsData, err := fetchMetricsData(*siteName, *environment)
-	if err != nil {
-		log.Fatalf("Failed to fetch metrics data: %v", err)
+	// Collect metrics for all accessible sites
+	var allSiteMetrics []SiteMetrics
+	successCount := 0
+	failCount := 0
+
+	for _, site := range siteList {
+		log.Printf("Processing site: %s (plan: %s)", site.Name, site.PlanName)
+
+		// Fetch metrics for this site
+		metricsData, err := fetchMetricsData(site.Name, *environment)
+		if err != nil {
+			log.Printf("Warning: Failed to fetch metrics for %s: %v", site.Name, err)
+			failCount++
+			continue
+		}
+
+		// Create SiteMetrics entry
+		siteMetrics := SiteMetrics{
+			SiteName:    site.Name,
+			Label:       site.Name, // site:list doesn't provide a label field, using name
+			PlanName:    site.PlanName,
+			MetricsData: metricsData,
+		}
+
+		allSiteMetrics = append(allSiteMetrics, siteMetrics)
+		successCount++
+		log.Printf("Successfully loaded %d metric entries for %s", len(metricsData), site.Name)
 	}
 
-	log.Printf("Loaded %d metric entries", len(metricsData))
+	log.Printf("Metrics collection complete: %d successful, %d failed", successCount, failCount)
 
-	// Create collector with data from Terminus
-	collector := NewPantheonCollector(
-		metricsData,
-		siteInfo.Name,
-		siteInfo.Label,
-		siteInfo.PlanName,
-	)
+	if len(allSiteMetrics) == 0 {
+		log.Fatal("No site metrics were collected. Cannot start exporter.")
+	}
+
+	// Create collector with all site metrics
+	collector := NewPantheonCollector(allSiteMetrics)
 
 	// Register the collector
 	registry := prometheus.NewRegistry()
@@ -306,18 +384,28 @@ func main() {
 <head><title>Pantheon Metrics Exporter</title></head>
 <body>
 <h1>Pantheon Metrics Exporter</h1>
-<p><strong>Site:</strong> %s (%s)</p>
 <p><strong>Environment:</strong> %s</p>
-<p><strong>Plan:</strong> %s</p>
+<p><strong>Sites monitored:</strong> %d</p>
+<ul>
+`, *environment, len(allSiteMetrics))
+
+		for _, site := range allSiteMetrics {
+			fmt.Fprintf(w, "<li>%s (plan: %s, %d metrics)</li>\n",
+				site.SiteName, site.PlanName, len(site.MetricsData))
+		}
+
+		fmt.Fprintf(w, `
+</ul>
 <p>Metrics are available at <a href="/metrics">/metrics</a></p>
 </body>
 </html>
-`, siteInfo.Label, siteInfo.Name, *environment, siteInfo.PlanName)
+`)
 	})
 
 	// Start server
 	serverAddr := ":" + *port
 	log.Printf("Starting Pantheon metrics exporter on %s", serverAddr)
+	log.Printf("Exporting metrics for %d sites", len(allSiteMetrics))
 	log.Printf("Metrics available at http://localhost%s/metrics", serverAddr)
 	if err := http.ListenAndServe(serverAddr, nil); err != nil {
 		log.Fatalf("Error starting server: %v", err)

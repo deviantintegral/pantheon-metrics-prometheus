@@ -151,3 +151,105 @@ func TestParseSiteInfoFromTerminus(t *testing.T) {
 		t.Errorf("Expected plan_name=Performance Small, got %s", siteInfo.PlanName)
 	}
 }
+
+func TestLoadSiteList(t *testing.T) {
+	// Test loading site list from JSON file
+	siteList, err := loadSiteList("testdata/site-list.json")
+	if err != nil {
+		t.Fatalf("Failed to load site list: %v", err)
+	}
+
+	// Verify we have the expected number of entries
+	if len(siteList) != 2 {
+		t.Errorf("Expected 2 site entries, got %d", len(siteList))
+	}
+
+	// Check for first site
+	foundSite1 := false
+	foundSite2 := false
+
+	for _, site := range siteList {
+		if site.Name == "site1234" {
+			foundSite1 = true
+			if site.PlanName != "Performance Small" {
+				t.Errorf("Expected plan_name=Performance Small for site1234, got %s", site.PlanName)
+			}
+			if site.Framework != "drupal8" {
+				t.Errorf("Expected framework=drupal8 for site1234, got %s", site.Framework)
+			}
+		}
+
+		if site.Name == "site5678" {
+			foundSite2 = true
+			if site.PlanName != "Basic" {
+				t.Errorf("Expected plan_name=Basic for site5678, got %s", site.PlanName)
+			}
+			if site.Framework != "wordpress" {
+				t.Errorf("Expected framework=wordpress for site5678, got %s", site.Framework)
+			}
+		}
+	}
+
+	if !foundSite1 {
+		t.Error("Expected to find site1234 in site list")
+	}
+
+	if !foundSite2 {
+		t.Error("Expected to find site5678 in site list")
+	}
+}
+
+func TestParseSiteList(t *testing.T) {
+	// Test parsing site list from terminus command output
+	data, err := os.ReadFile("testdata/site-list.json")
+	if err != nil {
+		t.Fatalf("Failed to read test data: %v", err)
+	}
+
+	siteList, err := parseSiteList(data)
+	if err != nil {
+		t.Fatalf("Failed to parse site list: %v", err)
+	}
+
+	if len(siteList) != 2 {
+		t.Errorf("Expected 2 site entries, got %d", len(siteList))
+	}
+}
+
+func TestNewPantheonCollector(t *testing.T) {
+	// Test creating a new collector with multiple sites
+	metricsData := map[string]MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        837,
+			PagesServed:   3081,
+			CacheHits:     119,
+			CacheMisses:   2962,
+			CacheHitRatio: "3.86%",
+		},
+	}
+
+	sites := []SiteMetrics{
+		{
+			SiteName:    "site1",
+			Label:       "Site 1",
+			PlanName:    "Basic",
+			MetricsData: metricsData,
+		},
+		{
+			SiteName:    "site2",
+			Label:       "Site 2",
+			PlanName:    "Performance",
+			MetricsData: metricsData,
+		},
+	}
+
+	collector := NewPantheonCollector(sites)
+	if collector == nil {
+		t.Fatal("Expected collector to be created, got nil")
+	}
+
+	if len(collector.sites) != 2 {
+		t.Errorf("Expected 2 sites in collector, got %d", len(collector.sites))
+	}
+}
