@@ -16,3 +16,4 @@ go.work
 
 # Application binary
 pantheon-metrics-exporter
+.html

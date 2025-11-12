@@ -232,3 +232,202 @@ func TestGetAccountID(t *testing.T) {
 		t.Errorf("Expected account ID %s, got %s", shortToken, accountID)
 	}
 }
+
+func TestParseMetricsDataError(t *testing.T) {
+	// Test parsing invalid JSON
+	invalidJSON := []byte(`{"invalid": "json"`)
+	_, err := parseMetricsData(invalidJSON)
+	if err == nil {
+		t.Error("Expected error for invalid JSON, got nil")
+	}
+}
+
+func TestParseSiteInfoError(t *testing.T) {
+	// Test parsing invalid JSON
+	invalidJSON := []byte(`{"invalid": "json"`)
+	_, err := parseSiteInfo(invalidJSON)
+	if err == nil {
+		t.Error("Expected error for invalid JSON, got nil")
+	}
+}
+
+func TestParseSiteListError(t *testing.T) {
+	// Test parsing invalid JSON
+	invalidJSON := []byte(`{"invalid": "json"`)
+	_, err := parseSiteList(invalidJSON)
+	if err == nil {
+		t.Error("Expected error for invalid JSON, got nil")
+	}
+}
+
+func TestLoadMetricsDataInvalidJSON(t *testing.T) {
+	// Create a temp file with invalid JSON
+	tmpfile, err := os.CreateTemp("", "invalid-metrics-*.json")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	// Write invalid JSON
+	if _, err := tmpfile.Write([]byte(`{"invalid": "json"`)); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpfile.Close()
+
+	// Try to load the invalid file
+	_, err = loadMetricsData(tmpfile.Name())
+	if err == nil {
+		t.Error("Expected error for invalid JSON, got nil")
+	}
+}
+
+func TestLoadSiteConfigInvalidJSON(t *testing.T) {
+	// Create a temp file with invalid JSON
+	tmpfile, err := os.CreateTemp("", "invalid-config-*.json")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	// Write invalid JSON
+	if _, err := tmpfile.Write([]byte(`{"invalid": "json"`)); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpfile.Close()
+
+	// Try to load the invalid file
+	_, err = loadSiteConfig(tmpfile.Name())
+	if err == nil {
+		t.Error("Expected error for invalid JSON, got nil")
+	}
+}
+
+func TestLoadSiteInfoInvalidJSON(t *testing.T) {
+	// Create a temp file with invalid JSON
+	tmpfile, err := os.CreateTemp("", "invalid-info-*.json")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	// Write invalid JSON
+	if _, err := tmpfile.Write([]byte(`{"invalid": "json"`)); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpfile.Close()
+
+	// Try to load the invalid file
+	_, err = loadSiteInfo(tmpfile.Name())
+	if err == nil {
+		t.Error("Expected error for invalid JSON, got nil")
+	}
+}
+
+func TestLoadSiteListInvalidJSON(t *testing.T) {
+	// Create a temp file with invalid JSON
+	tmpfile, err := os.CreateTemp("", "invalid-list-*.json")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	// Write invalid JSON
+	if _, err := tmpfile.Write([]byte(`{"invalid": "json"`)); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpfile.Close()
+
+	// Try to load the invalid file
+	_, err = loadSiteList(tmpfile.Name())
+	if err == nil {
+		t.Error("Expected error for invalid JSON, got nil")
+	}
+}
+
+func TestLoadSiteConfigError(t *testing.T) {
+	// Test error handling for non-existent file
+	_, err := loadSiteConfig("testdata/nonexistent.json")
+	if err == nil {
+		t.Error("Expected error for non-existent file, got nil")
+	}
+}
+
+func TestLoadSiteListError(t *testing.T) {
+	// Test error handling for non-existent file
+	_, err := loadSiteList("testdata/nonexistent.json")
+	if err == nil {
+		t.Error("Expected error for non-existent file, got nil")
+	}
+}
+
+func TestFetchSiteMetrics(t *testing.T) {
+	// Test fetchSiteMetrics - will fail without terminus but exercises the function
+	_, err := fetchSiteMetrics("testsite", "live")
+	// Should get an error since terminus is not available
+	if err == nil {
+		t.Error("Expected error when terminus is not available, got nil")
+	}
+}
+
+func TestFetchMetricsData(t *testing.T) {
+	// Test fetchMetricsData - will fail without terminus but exercises the function
+	_, err := fetchMetricsData("testsite", "live")
+	// Should get an error since terminus is not available
+	if err == nil {
+		t.Error("Expected error when terminus is not available, got nil")
+	}
+}
+
+func TestFetchSiteInfo(t *testing.T) {
+	// Test fetchSiteInfo - will fail without terminus but exercises the function
+	_, err := fetchSiteInfo("testsite")
+	// Should get an error since terminus is not available
+	if err == nil {
+		t.Error("Expected error when terminus is not available, got nil")
+	}
+}
+
+func TestFetchAllSites(t *testing.T) {
+	// Test fetchAllSites - will fail without terminus but exercises the function
+	_, err := fetchAllSites()
+	// Should get an error since terminus is not available
+	if err == nil {
+		t.Error("Expected error when terminus is not available, got nil")
+	}
+}
+
+func TestAuthenticateWithToken(t *testing.T) {
+	// Test authenticateWithToken - will fail without terminus but exercises the function
+	err := authenticateWithToken("test-token-12345678")
+	// Should get an error since terminus is not available
+	if err == nil {
+		t.Error("Expected error when terminus is not available, got nil")
+	}
+}
+
+func TestExecuteTerminusCommand(t *testing.T) {
+	// Test executeTerminusCommand - will fail without terminus but exercises the function
+	_, err := executeTerminusCommand("--version")
+	// Should get an error since terminus is not available
+	if err == nil {
+		t.Error("Expected error when terminus is not available, got nil")
+	}
+}
+
+func TestGetAccountIDExact8Chars(t *testing.T) {
+	// Test with exactly 8 character token
+	token := "12345678"
+	accountID := getAccountID(token)
+	if accountID != "12345678" {
+		t.Errorf("Expected account ID %s, got %s", "12345678", accountID)
+	}
+}
+
+func TestGetAccountIDEmpty(t *testing.T) {
+	// Test with empty token
+	token := ""
+	accountID := getAccountID(token)
+	if accountID != "" {
+		t.Errorf("Expected empty account ID, got %s", accountID)
+	}
+}

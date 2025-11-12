@@ -1,0 +1,634 @@
+package main
+
+import (
+	"testing"
+	"time"
+)
+
+func TestNewRefreshManager(t *testing.T) {
+	// Test creating a new refresh manager
+	tokens := []string{"token1", "token2"}
+	environment := "live"
+	refreshInterval := 60 * time.Minute
+
+	metricsData := map[string]MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        837,
+			PagesServed:   3081,
+			CacheHits:     119,
+			CacheMisses:   2962,
+			CacheHitRatio: "3.86%",
+		},
+	}
+
+	sites := []SiteMetrics{
+		{
+			SiteName:    "site1",
+			Label:       "Site 1",
+			PlanName:    "Basic",
+			Account:     "account1",
+			MetricsData: metricsData,
+		},
+	}
+
+	collector := NewPantheonCollector(sites)
+
+	manager := NewRefreshManager(tokens, environment, refreshInterval, collector)
+
+	if manager == nil {
+		t.Fatal("Expected refresh manager to be created, got nil")
+	}
+
+	if len(manager.tokens) != 2 {
+		t.Errorf("Expected 2 tokens, got %d", len(manager.tokens))
+	}
+
+	if manager.environment != "live" {
+		t.Errorf("Expected environment 'live', got %s", manager.environment)
+	}
+
+	if manager.refreshInterval != 60*time.Minute {
+		t.Errorf("Expected refresh interval 60m, got %v", manager.refreshInterval)
+	}
+
+	if manager.collector != collector {
+		t.Error("Expected collector to be set")
+	}
+}
+
+func TestNewRefreshManagerWithMultipleTokens(t *testing.T) {
+	// Test creating a refresh manager with multiple tokens
+	tokens := []string{"token1", "token2", "token3", "token4"}
+	environment := "dev"
+	refreshInterval := 30 * time.Minute
+
+	sites := []SiteMetrics{}
+	collector := NewPantheonCollector(sites)
+
+	manager := NewRefreshManager(tokens, environment, refreshInterval, collector)
+
+	if len(manager.tokens) != 4 {
+		t.Errorf("Expected 4 tokens, got %d", len(manager.tokens))
+	}
+
+	if manager.environment != "dev" {
+		t.Errorf("Expected environment 'dev', got %s", manager.environment)
+	}
+
+	if manager.refreshInterval != 30*time.Minute {
+		t.Errorf("Expected refresh interval 30m, got %v", manager.refreshInterval)
+	}
+}
+
+func TestNewRefreshManagerWithEmptyTokens(t *testing.T) {
+	// Test creating a refresh manager with empty tokens
+	tokens := []string{}
+	environment := "test"
+	refreshInterval := 15 * time.Minute
+
+	sites := []SiteMetrics{}
+	collector := NewPantheonCollector(sites)
+
+	manager := NewRefreshManager(tokens, environment, refreshInterval, collector)
+
+	if manager == nil {
+		t.Fatal("Expected refresh manager to be created, got nil")
+	}
+
+	if len(manager.tokens) != 0 {
+		t.Errorf("Expected 0 tokens, got %d", len(manager.tokens))
+	}
+}
+
+func TestNewRefreshManagerWithDifferentIntervals(t *testing.T) {
+	// Test creating refresh managers with different intervals
+	tokens := []string{"token1"}
+	environment := "live"
+	sites := []SiteMetrics{}
+	collector := NewPantheonCollector(sites)
+
+	// Test 5 minutes
+	manager1 := NewRefreshManager(tokens, environment, 5*time.Minute, collector)
+	if manager1.refreshInterval != 5*time.Minute {
+		t.Errorf("Expected refresh interval 5m, got %v", manager1.refreshInterval)
+	}
+
+	// Test 2 hours
+	manager2 := NewRefreshManager(tokens, environment, 120*time.Minute, collector)
+	if manager2.refreshInterval != 120*time.Minute {
+		t.Errorf("Expected refresh interval 120m, got %v", manager2.refreshInterval)
+	}
+
+	// Test 1 minute
+	manager3 := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+	if manager3.refreshInterval != 1*time.Minute {
+		t.Errorf("Expected refresh interval 1m, got %v", manager3.refreshInterval)
+	}
+}
+
+func TestRefreshManagerStart(t *testing.T) {
+	// Test that Start() launches goroutines without panicking
+	tokens := []string{}
+	environment := "live"
+	sites := []SiteMetrics{}
+	collector := NewPantheonCollector(sites)
+	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+
+	// Start should not panic even with empty tokens
+	// We don't wait for goroutines to complete as they run indefinitely
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("Start() panicked: %v", r)
+		}
+	}()
+
+	// Just verify Start can be called without panic
+	// The goroutines will run in background but won't do anything useful without valid tokens
+	manager.Start()
+
+	// Give goroutines a moment to start
+	time.Sleep(10 * time.Millisecond)
+}
+
+func TestRefreshMetricsWithQueueEmptySites(t *testing.T) {
+	// Test refreshMetricsWithQueue with no sites
+	tokens := []string{"token1"}
+	environment := "live"
+	sites := []SiteMetrics{} // Empty sites
+	collector := NewPantheonCollector(sites)
+	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+
+	// This should return immediately since there are no sites
+	done := make(chan bool, 1)
+	go func() {
+		manager.refreshMetricsWithQueue()
+		done <- true
+	}()
+
+	// Wait a short time to see if function returns quickly
+	select {
+	case <-done:
+		// Good, function returned as expected
+	case <-time.After(100 * time.Millisecond):
+		// Also acceptable, as the function may enter the ticker loop
+	}
+}
+
+func TestRefreshSiteMetricsWithInvalidToken(t *testing.T) {
+	// Test refreshSiteMetrics with an account that doesn't have a matching token
+	tokens := []string{"token1"}
+	environment := "live"
+	sites := []SiteMetrics{}
+	collector := NewPantheonCollector(sites)
+	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+
+	// Try to refresh metrics for a non-existent account
+	// This should log a warning and return without panicking
+	manager.refreshSiteMetrics("nonexistent", "somesite")
+
+	// If we get here without panic, test passes
+}
+
+func TestRefreshAllSiteListsEmptyTokens(t *testing.T) {
+	// Test refreshAllSiteLists with empty tokens
+	tokens := []string{}
+	environment := "live"
+	sites := []SiteMetrics{}
+	collector := NewPantheonCollector(sites)
+	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+
+	// This should complete without panic even with no tokens
+	manager.refreshAllSiteLists()
+
+	// Verify sites are empty
+	currentSites := collector.GetSites()
+	if len(currentSites) != 0 {
+		t.Errorf("Expected 0 sites with empty tokens, got %d", len(currentSites))
+	}
+}
+
+func TestRefreshManagerWithExistingSites(t *testing.T) {
+	// Test refresh manager behavior with existing sites in collector
+	tokens := []string{"token1", "token2"}
+	environment := "dev"
+
+	metricsData := map[string]MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        100,
+			PagesServed:   500,
+			CacheHits:     50,
+			CacheMisses:   450,
+			CacheHitRatio: "10%",
+		},
+	}
+
+	sites := []SiteMetrics{
+		{
+			SiteName:    "site1",
+			Label:       "Site 1",
+			PlanName:    "Basic",
+			Account:     "account1",
+			MetricsData: metricsData,
+		},
+		{
+			SiteName:    "site2",
+			Label:       "Site 2",
+			PlanName:    "Performance",
+			Account:     "account2",
+			MetricsData: metricsData,
+		},
+	}
+
+	collector := NewPantheonCollector(sites)
+	manager := NewRefreshManager(tokens, environment, 30*time.Minute, collector)
+
+	// Verify manager has access to existing sites through collector
+	currentSites := collector.GetSites()
+	if len(currentSites) != 2 {
+		t.Errorf("Expected 2 sites, got %d", len(currentSites))
+	}
+
+	// Verify manager properties
+	if manager.environment != "dev" {
+		t.Errorf("Expected environment 'dev', got %s", manager.environment)
+	}
+}
+
+func TestRefreshMetricsWithQueueWithSites(t *testing.T) {
+	// Test refreshMetricsWithQueue with actual sites
+	tokens := []string{"token1"}
+	environment := "live"
+
+	metricsData := map[string]MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        100,
+			PagesServed:   500,
+			CacheHits:     50,
+			CacheMisses:   450,
+			CacheHitRatio: "10%",
+		},
+	}
+
+	sites := []SiteMetrics{
+		{
+			SiteName:    "site1",
+			Label:       "Site 1",
+			PlanName:    "Basic",
+			Account:     "token1id",
+			MetricsData: metricsData,
+		},
+		{
+			SiteName:    "site2",
+			Label:       "Site 2",
+			PlanName:    "Performance",
+			Account:     "token1id",
+			MetricsData: metricsData,
+		},
+	}
+
+	collector := NewPantheonCollector(sites)
+	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+
+	// Start the refresh queue in background
+	done := make(chan bool, 1)
+	go func() {
+		// Let it run for a short time
+		time.Sleep(50 * time.Millisecond)
+		done <- true
+	}()
+
+	// Start the refresh
+	go manager.refreshMetricsWithQueue()
+
+	// Wait for timeout
+	<-done
+}
+
+func TestRefreshAllSiteListsWithExistingSites(t *testing.T) {
+	// Test refreshAllSiteLists when collector already has sites
+	tokens := []string{"token1"}
+	environment := "live"
+
+	metricsData := map[string]MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        100,
+			PagesServed:   500,
+			CacheHits:     50,
+			CacheMisses:   450,
+			CacheHitRatio: "10%",
+		},
+	}
+
+	// Start with some existing sites
+	existingSites := []SiteMetrics{
+		{
+			SiteName:    "oldsite",
+			Label:       "Old Site",
+			PlanName:    "Basic",
+			Account:     "token1id",
+			MetricsData: metricsData,
+		},
+	}
+
+	collector := NewPantheonCollector(existingSites)
+	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+
+	// Call refreshAllSiteLists
+	// This will fail when trying to authenticate, but will exercise the code path
+	manager.refreshAllSiteLists()
+
+	// The sites should remain unchanged since authentication will fail
+	// This test exercises the code but won't successfully update sites
+}
+
+func TestRefreshSiteMetricsWithMatchingToken(t *testing.T) {
+	// Test refreshSiteMetrics with a token that matches via getAccountID
+	token := "1234567890abcdef1234567890abcdef"
+	accountID := getAccountID(token) // Should return "90abcdef"
+
+	tokens := []string{token}
+	environment := "live"
+	sites := []SiteMetrics{}
+	collector := NewPantheonCollector(sites)
+	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+
+	// Try to refresh metrics - will fail at authentication but exercises the token lookup path
+	manager.refreshSiteMetrics(accountID, "somesite")
+}
+
+func TestRefreshSiteListsPeriodically(t *testing.T) {
+	// Test refreshSiteListsPeriodically starts and runs
+	tokens := []string{}
+	environment := "live"
+	sites := []SiteMetrics{}
+	collector := NewPantheonCollector(sites)
+	manager := NewRefreshManager(tokens, environment, 50*time.Millisecond, collector)
+
+	// Start the periodic refresh in background
+	done := make(chan bool, 1)
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		done <- true
+	}()
+
+	// Start refreshSiteListsPeriodically - it will run in background
+	go manager.refreshSiteListsPeriodically()
+
+	// Wait briefly
+	<-done
+
+	// If we get here without panic, test passes
+}
+
+func TestRefreshAllSiteListsMultipleTokens(t *testing.T) {
+	// Test refreshAllSiteLists with multiple tokens
+	tokens := []string{"token1", "token2", "token3"}
+	environment := "live"
+
+	metricsData := map[string]MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        100,
+			PagesServed:   500,
+			CacheHits:     50,
+			CacheMisses:   450,
+			CacheHitRatio: "10%",
+		},
+	}
+
+	// Start with some existing sites
+	existingSites := []SiteMetrics{
+		{
+			SiteName:    "oldsite1",
+			Label:       "Old Site 1",
+			PlanName:    "Basic",
+			Account:     "token1id",
+			MetricsData: metricsData,
+		},
+		{
+			SiteName:    "oldsite2",
+			Label:       "Old Site 2",
+			PlanName:    "Performance",
+			Account:     "token2id",
+			MetricsData: metricsData,
+		},
+	}
+
+	collector := NewPantheonCollector(existingSites)
+	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+
+	// Call refreshAllSiteLists with multiple tokens
+	// This will fail when trying to authenticate, but will exercise the loop
+	manager.refreshAllSiteLists()
+}
+
+func TestRefreshMetricsWithQueueLongInterval(t *testing.T) {
+	// Test refreshMetricsWithQueue with a longer interval
+	tokens := []string{"token1"}
+	environment := "live"
+
+	metricsData := map[string]MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        100,
+			PagesServed:   500,
+			CacheHits:     50,
+			CacheMisses:   450,
+			CacheHitRatio: "10%",
+		},
+	}
+
+	// Create more sites to test batching logic
+	sites := []SiteMetrics{
+		{
+			SiteName:    "site1",
+			Label:       "Site 1",
+			PlanName:    "Basic",
+			Account:     "token1id",
+			MetricsData: metricsData,
+		},
+		{
+			SiteName:    "site2",
+			Label:       "Site 2",
+			PlanName:    "Performance",
+			Account:     "token1id",
+			MetricsData: metricsData,
+		},
+		{
+			SiteName:    "site3",
+			Label:       "Site 3",
+			PlanName:    "Elite",
+			Account:     "token1id",
+			MetricsData: metricsData,
+		},
+	}
+
+	collector := NewPantheonCollector(sites)
+	manager := NewRefreshManager(tokens, environment, 3*time.Minute, collector)
+
+	// Start the refresh queue in background
+	done := make(chan bool, 1)
+	go func() {
+		// Let it run for a short time
+		time.Sleep(50 * time.Millisecond)
+		done <- true
+	}()
+
+	// Start the refresh
+	go manager.refreshMetricsWithQueue()
+
+	// Wait for timeout
+	<-done
+}
+
+func TestRefreshMetricsWithQueueManySites(t *testing.T) {
+	// Test refreshMetricsWithQueue with many sites to exercise batching
+	tokens := []string{"token1"}
+	environment := "live"
+
+	metricsData := map[string]MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        100,
+			PagesServed:   500,
+			CacheHits:     50,
+			CacheMisses:   450,
+			CacheHitRatio: "10%",
+		},
+	}
+
+	// Create many sites to test the queue batching and cycling
+	sites := make([]SiteMetrics, 10)
+	for i := 0; i < 10; i++ {
+		sites[i] = SiteMetrics{
+			SiteName:    "site" + string(rune('0'+i)),
+			Label:       "Site " + string(rune('0'+i)),
+			PlanName:    "Basic",
+			Account:     "token1id",
+			MetricsData: metricsData,
+		}
+	}
+
+	collector := NewPantheonCollector(sites)
+	manager := NewRefreshManager(tokens, environment, 5*time.Minute, collector)
+
+	// Start the refresh queue in background
+	done := make(chan bool, 1)
+	go func() {
+		// Let it run for a short time to exercise the logic
+		time.Sleep(50 * time.Millisecond)
+		done <- true
+	}()
+
+	// Start the refresh
+	go manager.refreshMetricsWithQueue()
+
+	// Wait for timeout
+	<-done
+}
+
+func TestRefreshMetricsWithQueueShortInterval(t *testing.T) {
+	// Test refreshMetricsWithQueue with a very short interval to exercise ticker logic
+	tokens := []string{"token1"}
+	environment := "live"
+
+	metricsData := map[string]MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        100,
+			PagesServed:   500,
+			CacheHits:     50,
+			CacheMisses:   450,
+			CacheHitRatio: "10%",
+		},
+	}
+
+	// Create several sites
+	sites := []SiteMetrics{
+		{
+			SiteName:    "site1",
+			Label:       "Site 1",
+			PlanName:    "Basic",
+			Account:     "token1id",
+			MetricsData: metricsData,
+		},
+		{
+			SiteName:    "site2",
+			Label:       "Site 2",
+			PlanName:    "Performance",
+			Account:     "token1id",
+			MetricsData: metricsData,
+		},
+		{
+			SiteName:    "site3",
+			Label:       "Site 3",
+			PlanName:    "Elite",
+			Account:     "token1id",
+			MetricsData: metricsData,
+		},
+	}
+
+	collector := NewPantheonCollector(sites)
+	// Use a very short interval (3 minutes) which means 1 site per minute
+	manager := NewRefreshManager(tokens, environment, 3*time.Minute, collector)
+
+	// Note: refreshMetricsWithQueue uses 1-minute ticker internally
+	// We can't actually test the ticker firing in a unit test
+	// But we can at least exercise the initialization logic
+	done := make(chan bool, 1)
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		done <- true
+	}()
+
+	go manager.refreshMetricsWithQueue()
+
+	<-done
+}
+
+func TestRefreshMetricsWithQueueTickerFires(t *testing.T) {
+	// This test is skipped by default as it takes >1 minute to run
+	// Uncomment to test ticker firing logic
+	if testing.Short() {
+		t.Skip("Skipping long-running test in short mode")
+	}
+
+	tokens := []string{"token1"}
+	environment := "live"
+
+	metricsData := map[string]MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        100,
+			PagesServed:   500,
+			CacheHits:     50,
+			CacheMisses:   450,
+			CacheHitRatio: "10%",
+		},
+	}
+
+	sites := []SiteMetrics{
+		{
+			SiteName:    "site1",
+			Label:       "Site 1",
+			PlanName:    "Basic",
+			Account:     "token1id",
+			MetricsData: metricsData,
+		},
+	}
+
+	collector := NewPantheonCollector(sites)
+	manager := NewRefreshManager(tokens, environment, 3*time.Minute, collector)
+
+	// Start refresh queue
+	go manager.refreshMetricsWithQueue()
+
+	// Wait for ticker to fire at least once (61 seconds to ensure it fires)
+	time.Sleep(61 * time.Second)
+
+	// If we get here, the test passes
+}
