@@ -1,0 +1,91 @@
+name: PR Title Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  check-title:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        id: lint_pr_title
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Configure allowed commit types
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            chore
+            ci
+            build
+          # Optionally require a scope (set to false for flexibility)
+          requireScope: false
+          # Allow custom scopes
+          scopes: |
+            metrics
+            collector
+            refresh
+            client
+            auth
+            config
+          # Subject (description) requirements
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject should start with a lowercase letter and be concise.
+            Example: "feat: add support for custom labels" not "feat: Add support"
+          # Validate PR body is present (optional but recommended)
+          validateSingleCommit: false
+          # Ignore merge commits
+          ignoreLabels: |
+            skip-conventional-commits
+
+      - uses: marocchino/sticky-pull-request-comment@v2
+        # When the previous steps fails, the workflow would stop. By adding this
+        # condition you can continue the execution with the populated error message.
+        if: always() && (steps.lint_pr_title.outputs.error_message != null)
+        with:
+          header: pr-title-lint-error
+          message: |
+            Hey there! 👋
+
+            Your PR title needs to follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.
+
+            **Error:**
+            ```
+            ${{ steps.lint_pr_title.outputs.error_message }}
+            ```
+
+            **Valid format:**
+            ```
+            <type>[optional scope]: <description>
+            ```
+
+            **Examples:**
+            - `feat: add support for custom metric labels`
+            - `fix: handle nil pointer in collector refresh`
+            - `docs: update prometheus configuration examples`
+            - `refactor(client): simplify authentication flow`
+
+            **Allowed types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`
+
+            For more details, see [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md).
+
+      - uses: marocchino/sticky-pull-request-comment@v2
+        # Delete the comment when the title is valid
+        if: steps.lint_pr_title.outputs.error_message == null
+        with:
+          header: pr-title-lint-error
+          delete: true

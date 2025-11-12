@@ -233,6 +233,36 @@ The application flow:
 - Startup time scales with: (number of accounts) × (average sites per account)
 - Consider the concurrent fetching enhancement mentioned in Future Enhancements
 
+## Contributing
+
+We welcome contributions! This project follows the [Conventional Commits](https://www.conventionalcommits.org/) specification for all pull requests.
+
+### Quick Start
+
+1. Fork the repository
+2. Create a new branch for your changes
+3. Make your changes and write tests
+4. Ensure tests pass: `go test -v ./...`
+5. Create a pull request with a conventional commit title
+
+### PR Title Format
+
+Your pull request title must follow this format:
+
+```
+<type>[optional scope]: <description>
+```
+
+**Examples:**
+- `feat: add support for custom metric labels`
+- `fix: handle nil pointer in collector refresh`
+- `docs: update prometheus configuration examples`
+- `refactor(client): simplify authentication flow`
+
+**Allowed types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`
+
+For detailed contributing guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 This project is open source and available for use and modification.
