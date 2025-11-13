@@ -23,6 +23,8 @@
 - **ci**: Changes to CI/CD configuration
 - **build**: Changes to build system or dependencies
 
+The full list of allowed types is in .github/workflows/pr-title-check.yml.
+
 ### Optional Scopes
 
 Use scopes to categorize changes by area of the codebase:
@@ -34,6 +36,8 @@ Use scopes to categorize changes by area of the codebase:
 - **client**: Terminus API client interactions
 - **auth**: Authentication and token management
 - **config**: Configuration handling
+
+The full list of allowed scopes is in .github/workflows/pr-title-check.yml.
 
 ### Description Requirements
 
