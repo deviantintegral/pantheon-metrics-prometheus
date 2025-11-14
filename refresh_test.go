@@ -591,12 +591,7 @@ func TestRefreshMetricsWithQueueShortInterval(t *testing.T) {
 }
 
 func TestRefreshMetricsWithQueueTickerFires(t *testing.T) {
-	// This test is skipped by default as it takes >1 minute to run
-	// Uncomment to test ticker firing logic
-	if testing.Short() {
-		t.Skip("Skipping long-running test in short mode")
-	}
-
+	// Test that the ticker actually fires and processes sites
 	tokens := []string{"token1"}
 	environment := "live"
 
@@ -624,13 +619,27 @@ func TestRefreshMetricsWithQueueTickerFires(t *testing.T) {
 	collector := NewPantheonCollector(sites)
 	manager := NewRefreshManager(tokens, environment, 3*time.Minute, collector)
 
+	// Use a short ticker interval for testing (2 seconds)
+	manager.SetTickerInterval(2 * time.Second)
+
 	// Start refresh queue
 	go manager.refreshMetricsWithQueue()
 
-	// Wait for ticker to fire at least once (61 seconds to ensure it fires)
-	time.Sleep(61 * time.Second)
+	// Wait for ticker to fire at least twice (5 seconds should be enough for 2 fires at 2s interval)
+	time.Sleep(5 * time.Second)
 
-	// If we get here, the test passes
+	// Verify the ticker fired at least twice
+	fireCount := manager.GetTickerFireCount()
+	if fireCount < 2 {
+		t.Errorf("Expected ticker to fire at least 2 times, but it fired %d times", fireCount)
+	}
+
+	// Verify the ticker fired but not too many times (should be 2-3 fires in 5 seconds with 2s interval)
+	if fireCount > 4 {
+		t.Errorf("Expected ticker to fire 2-3 times in 5 seconds, but it fired %d times", fireCount)
+	}
+
+	t.Logf("Ticker fired %d times in 5 seconds (expected 2-3)", fireCount)
 }
 
 func TestInitializeDiscoveredSites(t *testing.T) {

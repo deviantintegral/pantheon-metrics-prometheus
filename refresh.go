@@ -4,6 +4,7 @@ import (
 	"log"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -15,6 +16,8 @@ type RefreshManager struct {
 	collector       *PantheonCollector
 	mu              sync.Mutex
 	discoveredSites map[string]bool // Track sites discovered since app start (account:site format)
+	tickerInterval  time.Duration   // Interval for metrics refresh ticker (defaults to 1 minute)
+	tickerFireCount int64           // Counter for ticker fires (for testing)
 }
 
 // NewRefreshManager creates a new refresh manager
@@ -25,7 +28,18 @@ func NewRefreshManager(tokens []string, environment string, refreshInterval time
 		refreshInterval: refreshInterval,
 		collector:       collector,
 		discoveredSites: make(map[string]bool),
+		tickerInterval:  1 * time.Minute, // Default to 1 minute
 	}
+}
+
+// SetTickerInterval sets the ticker interval for metrics refresh (useful for testing)
+func (rm *RefreshManager) SetTickerInterval(interval time.Duration) {
+	rm.tickerInterval = interval
+}
+
+// GetTickerFireCount returns the number of times the ticker has fired (useful for testing)
+func (rm *RefreshManager) GetTickerFireCount() int64 {
+	return atomic.LoadInt64(&rm.tickerFireCount)
 }
 
 // InitializeDiscoveredSites populates the discovered sites map with initial sites
@@ -178,13 +192,15 @@ func (rm *RefreshManager) refreshAllSiteLists() {
 
 // refreshMetricsWithQueue processes metrics refresh using a queue to prevent stampedes
 func (rm *RefreshManager) refreshMetricsWithQueue() {
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(rm.tickerInterval)
 	defer ticker.Stop()
 
 	siteIndex := 0
 	lastTotalSites := 0
 
 	for range ticker.C {
+		// Increment ticker fire count for testing
+		atomic.AddInt64(&rm.tickerFireCount, 1)
 		// Get current sites
 		currentSites := rm.collector.GetSites()
 		if len(currentSites) == 0 {
