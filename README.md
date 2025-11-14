@@ -7,6 +7,7 @@ A Go application that fetches Pantheon site metrics using the Terminus CLI and e
 | Workflow | Status |
 |----------|--------|
 | Tests | [![Tests](https://github.com/deviantintegral/pantheon-metrics-prometheus/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/deviantintegral/pantheon-metrics-prometheus/actions/workflows/test.yml) |
+| Lint | [![Lint](https://github.com/deviantintegral/pantheon-metrics-prometheus/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/deviantintegral/pantheon-metrics-prometheus/actions/workflows/lint.yml) |
 | Release | [![Release](https://github.com/deviantintegral/pantheon-metrics-prometheus/actions/workflows/release.yml/badge.svg)](https://github.com/deviantintegral/pantheon-metrics-prometheus/actions/workflows/release.yml) |
 
 ## Features
@@ -191,6 +192,57 @@ The exporter handles errors gracefully:
 ```bash
 go test -v
 ```
+
+### Code Quality
+
+This project uses [golangci-lint](https://golangci-lint.run/) for code quality checks and linting.
+
+#### Running the Linter
+
+```bash
+# Run all linters
+golangci-lint run
+
+# Run with auto-fix where possible
+golangci-lint run --fix
+```
+
+#### Pre-commit Hooks
+
+The project includes pre-commit hooks to automatically run linting and tests before commits. To set up pre-commit hooks:
+
+1. Install [pre-commit](https://pre-commit.com/):
+   ```bash
+   # Using pip
+   pip install pre-commit
+
+   # Or using homebrew (macOS)
+   brew install pre-commit
+   ```
+
+2. Install the git hooks:
+   ```bash
+   pre-commit install
+   ```
+
+3. (Optional) Run against all files:
+   ```bash
+   pre-commit run --all-files
+   ```
+
+The pre-commit hooks will automatically run:
+- `go mod tidy` - Keep dependencies tidy
+- `go fmt` - Format code
+- `go vet` - Check for suspicious constructs
+- `golangci-lint` - Run all configured linters
+- `go test` - Run tests with race detector and coverage
+- `go build` - Verify the project builds
+
+#### CI/CD
+
+GitHub Actions automatically runs tests and linting on all pull requests and pushes to main. See:
+- `.github/workflows/test.yml` - Runs tests and builds
+- `.github/workflows/lint.yml` - Runs golangci-lint
 
 ### Test Data
 

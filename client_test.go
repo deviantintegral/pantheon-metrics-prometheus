@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+const (
+	testSiteName       = "site1234"
+	testSiteLabel      = "Example Site"
+	testSitePlanName   = "Performance Small"
+)
+
 func TestLoadMetricsData(t *testing.T) {
 	// Test loading metrics data from JSON file
 	metricsData, err := loadMetricsData("testdata/example-metrics.json")
@@ -61,16 +67,16 @@ func TestLoadSiteInfo(t *testing.T) {
 		t.Fatalf("Failed to load site info: %v", err)
 	}
 
-	if siteInfo.Name != "site1234" {
-		t.Errorf("Expected name=site1234, got %s", siteInfo.Name)
+	if siteInfo.Name != testSiteName {
+		t.Errorf("Expected name=%s, got %s", testSiteName, siteInfo.Name)
 	}
 
-	if siteInfo.Label != "Example Site" {
-		t.Errorf("Expected label=Example Site, got %s", siteInfo.Label)
+	if siteInfo.Label != testSiteLabel {
+		t.Errorf("Expected label=%s, got %s", testSiteLabel, siteInfo.Label)
 	}
 
-	if siteInfo.PlanName != "Performance Small" {
-		t.Errorf("Expected plan_name=Performance Small, got %s", siteInfo.PlanName)
+	if siteInfo.PlanName != testSitePlanName {
+		t.Errorf("Expected plan_name=%s, got %s", testSitePlanName, siteInfo.PlanName)
 	}
 }
 
@@ -139,16 +145,16 @@ func TestParseSiteInfoFromTerminus(t *testing.T) {
 		t.Fatalf("Failed to parse site info: %v", err)
 	}
 
-	if siteInfo.Name != "site1234" {
-		t.Errorf("Expected name=site1234, got %s", siteInfo.Name)
+	if siteInfo.Name != testSiteName {
+		t.Errorf("Expected name=%s, got %s", testSiteName, siteInfo.Name)
 	}
 
-	if siteInfo.Label != "Example Site" {
-		t.Errorf("Expected label=Example Site, got %s", siteInfo.Label)
+	if siteInfo.Label != testSiteLabel {
+		t.Errorf("Expected label=%s, got %s", testSiteLabel, siteInfo.Label)
 	}
 
-	if siteInfo.PlanName != "Performance Small" {
-		t.Errorf("Expected plan_name=Performance Small, got %s", siteInfo.PlanName)
+	if siteInfo.PlanName != testSitePlanName {
+		t.Errorf("Expected plan_name=%s, got %s", testSitePlanName, siteInfo.PlanName)
 	}
 }
 
@@ -266,13 +272,15 @@ func TestLoadMetricsDataInvalidJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpfile.Name())
+	defer func() {
+		_ = os.Remove(tmpfile.Name())
+	}()
 
 	// Write invalid JSON
 	if _, err := tmpfile.Write([]byte(`{"invalid": "json"`)); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
-	tmpfile.Close()
+	_ = tmpfile.Close()
 
 	// Try to load the invalid file
 	_, err = loadMetricsData(tmpfile.Name())
@@ -287,13 +295,15 @@ func TestLoadSiteConfigInvalidJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpfile.Name())
+	defer func() {
+		_ = os.Remove(tmpfile.Name())
+	}()
 
 	// Write invalid JSON
 	if _, err := tmpfile.Write([]byte(`{"invalid": "json"`)); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
-	tmpfile.Close()
+	_ = tmpfile.Close()
 
 	// Try to load the invalid file
 	_, err = loadSiteConfig(tmpfile.Name())
@@ -308,13 +318,15 @@ func TestLoadSiteInfoInvalidJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpfile.Name())
+	defer func() {
+		_ = os.Remove(tmpfile.Name())
+	}()
 
 	// Write invalid JSON
 	if _, err := tmpfile.Write([]byte(`{"invalid": "json"`)); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
-	tmpfile.Close()
+	_ = tmpfile.Close()
 
 	// Try to load the invalid file
 	_, err = loadSiteInfo(tmpfile.Name())
@@ -329,13 +341,15 @@ func TestLoadSiteListInvalidJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpfile.Name())
+	defer func() {
+		_ = os.Remove(tmpfile.Name())
+	}()
 
 	// Write invalid JSON
 	if _, err := tmpfile.Write([]byte(`{"invalid": "json"`)); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
-	tmpfile.Close()
+	_ = tmpfile.Close()
 
 	// Try to load the invalid file
 	_, err = loadSiteList(tmpfile.Name())

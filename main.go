@@ -26,7 +26,7 @@ func createSiteMetrics(siteName, accountID, planName string, metricsData map[str
 
 // processAccountSiteList processes a list of sites for an account and collects metrics
 func processAccountSiteList(accountID, environment string, siteList map[string]SiteListEntry) ([]SiteMetrics, int, int) {
-	var siteMetrics []SiteMetrics
+	siteMetrics := make([]SiteMetrics, 0, len(siteList))
 	successCount := 0
 	failCount := 0
 
@@ -159,11 +159,11 @@ func collectAllMetrics(tokens []string, environment string) []SiteMetrics {
 
 // createRootHandler creates the HTTP handler for the root path
 func createRootHandler(environment string, tokens []string, collector *PantheonCollector) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		allSiteMetrics := collector.GetSites()
 
 		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprintf(w, `
+		_, _ = fmt.Fprintf(w, `
 <html>
 <head><title>Pantheon Metrics Exporter</title></head>
 <body>
@@ -175,11 +175,11 @@ func createRootHandler(environment string, tokens []string, collector *PantheonC
 `, environment, len(tokens), len(allSiteMetrics))
 
 		for _, site := range allSiteMetrics {
-			fmt.Fprintf(w, "<li>[%s] %s (plan: %s, %d metrics)</li>\n",
+			_, _ = fmt.Fprintf(w, "<li>[%s] %s (plan: %s, %d metrics)</li>\n",
 				site.Account, site.SiteName, site.PlanName, len(site.MetricsData))
 		}
 
-		fmt.Fprintf(w, `
+		_, _ = fmt.Fprintf(w, `
 </ul>
 <p>Metrics are available at <a href="/metrics">/metrics</a></p>
 </body>
@@ -256,12 +256,20 @@ func main() {
 		}
 	}()
 
-	// Start server
+	// Start server with timeouts
 	serverAddr := ":" + *port
 	log.Printf("Starting Pantheon metrics exporter on %s", serverAddr)
 	log.Printf("Metrics available at http://localhost%s/metrics", serverAddr)
 	log.Printf("Server is ready to serve requests (metrics collection running in background)")
-	if err := http.ListenAndServe(serverAddr, nil); err != nil {
+
+	server := &http.Server{
+		Addr:         serverAddr,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
 }
