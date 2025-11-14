@@ -6,15 +6,59 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
+	"sync"
 )
+
+var (
+	debugMode bool
+	debugMu   sync.RWMutex
+)
+
+// SetDebugMode sets the global debug mode flag
+func SetDebugMode(enabled bool) {
+	debugMu.Lock()
+	defer debugMu.Unlock()
+	debugMode = enabled
+}
+
+// isDebugMode returns the current debug mode setting
+func isDebugMode() bool {
+	debugMu.RLock()
+	defer debugMu.RUnlock()
+	return debugMode
+}
+
+// debugLog logs debug information to stderr
+func debugLog(format string, args ...interface{}) {
+	if isDebugMode() {
+		fmt.Fprintf(os.Stderr, "[DEBUG] "+format+"\n", args...)
+	}
+}
 
 // executeTerminusCommand executes a terminus CLI command and returns the output
 func executeTerminusCommand(args ...string) ([]byte, error) {
+	// Mask sensitive data in debug logs
+	maskedArgs := make([]string, len(args))
+	copy(maskedArgs, args)
+	for i, arg := range maskedArgs {
+		if strings.HasPrefix(arg, "--machine-token=") {
+			maskedArgs[i] = "--machine-token=***MASKED***"
+		}
+	}
+
+	debugLog("Executing command: terminus %s", strings.Join(maskedArgs, " "))
+
 	cmd := exec.Command("terminus", args...)
 	output, err := cmd.CombinedOutput()
+
 	if err != nil {
+		debugLog("Command failed with error: %v", err)
+		debugLog("Error output: %s", string(output))
 		return nil, fmt.Errorf("terminus command failed: %w\nOutput: %s", err, string(output))
 	}
+
+	debugLog("Command response (%d bytes): %s", len(output), string(output))
 	return output, nil
 }
 
