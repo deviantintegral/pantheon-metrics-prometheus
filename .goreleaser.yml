@@ -1,0 +1,114 @@
+# GoReleaser configuration
+# Documentation: https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    # Ensure dependencies are downloaded and verified
+    - go mod download
+    - go mod verify
+
+builds:
+  - id: pantheon-metrics-exporter
+    main: .
+    binary: pantheon-metrics-exporter
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - freebsd
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "7"
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE*
+      - CONTRIBUTING.md
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - 'Merge pull request'
+      - 'Merge branch'
+  groups:
+    - title: Features
+      regexp: '^feat.*?:'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^fix.*?:'
+      order: 1
+    - title: Performance Improvements
+      regexp: '^perf.*?:'
+      order: 2
+    - title: Refactoring
+      regexp: '^refactor.*?:'
+      order: 3
+    - title: Build and Dependencies
+      regexp: '^build.*?:'
+      order: 4
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: deviantintegral
+    name: pantheon-metrics-prometheus
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## Release {{ .Tag }}
+
+    This release includes the following changes:
+  footer: |
+    ---
+
+    **Full Changelog**: https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+    ## Installation
+
+    Download the appropriate binary for your platform from the assets below.
+
+    ### Verify checksums
+    ```bash
+    sha256sum -c checksums.txt
+    ```
