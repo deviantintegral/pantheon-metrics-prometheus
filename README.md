@@ -50,6 +50,14 @@ chmod +x pantheon-metrics-exporter
 go build -o pantheon-metrics-exporter
 ```
 
+Or for development/testing (runs without building a binary):
+
+```bash
+# Note: Use 'go run .' not 'go run main.go'
+# The dot tells Go to compile all .go files in the package
+go run .
+```
+
 ## Usage
 
 ### Setting Up Machine Tokens
@@ -186,10 +194,26 @@ The exporter handles errors gracefully:
 
 ## Development
 
+### Building and Running
+
+```bash
+# Build the binary
+go build -o pantheon-metrics-exporter
+
+# Or run directly without building (for development)
+# IMPORTANT: Use 'go run .' not 'go run main.go'
+export PANTHEON_MACHINE_TOKENS="your-token"
+go run .
+```
+
 ### Running Tests
 
 ```bash
-go test -v
+# Run all tests
+go test -v ./...
+
+# Run tests with race detection and coverage
+go test -v -race -coverprofile=coverage.out ./...
 ```
 
 ### Test Data
