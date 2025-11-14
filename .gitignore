@@ -20,3 +20,6 @@ pantheon-metrics-prometheus
 
 # Test coverage
 *.html
+
+# Environment variables
+.env
