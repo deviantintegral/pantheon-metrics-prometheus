@@ -58,21 +58,51 @@ func (rm *RefreshManager) refreshSiteListsPeriodically() {
 	}
 }
 
+// buildSiteKeyMap creates a map of site keys from a list of sites
+func buildSiteKeyMap(sites []SiteMetrics) map[string]bool {
+	siteMap := make(map[string]bool)
+	for _, site := range sites {
+		key := site.Account + ":" + site.SiteName
+		siteMap[key] = true
+	}
+	return siteMap
+}
+
+// findAddedSites returns the list of sites that are in newSites but not in currentSites
+func findAddedSites(currentSites, newSites map[string]bool, discoveredSites map[string]bool) []string {
+	var added []string
+	for key := range newSites {
+		if !currentSites[key] {
+			// Check if it's newly discovered (never seen before)
+			if !discoveredSites[key] {
+				added = append(added, key)
+			}
+		}
+	}
+	return added
+}
+
+// findRemovedSites returns the list of sites that are in currentSites but not in newSites
+func findRemovedSites(currentSites, newSites map[string]bool) []string {
+	var removed []string
+	for key := range currentSites {
+		if !newSites[key] {
+			removed = append(removed, key)
+		}
+	}
+	return removed
+}
+
 // refreshAllSiteLists refreshes the site list for all accounts
 func (rm *RefreshManager) refreshAllSiteLists() {
 	var allSiteMetrics []SiteMetrics
 
 	// Get current sites to track changes
 	existingSites := rm.collector.GetSites()
-	currentSitesMap := make(map[string]bool)
-	for _, site := range existingSites {
-		key := site.Account + ":" + site.SiteName
-		currentSitesMap[key] = true
-	}
+	currentSitesMap := buildSiteKeyMap(existingSites)
 
 	// Track new sites for this refresh
 	newSitesMap := make(map[string]bool)
-	var addedSites []string
 	totalSitesFound := 0
 
 	for _, token := range rm.tokens {
@@ -111,15 +141,6 @@ func (rm *RefreshManager) refreshAllSiteLists() {
 				metricsData = make(map[string]MetricData)
 			}
 
-			// Check if this is a newly added site (not in current list)
-			if !currentSitesMap[key] {
-				// Check if it's newly discovered (never seen before)
-				if !rm.discoveredSites[key] {
-					addedSites = append(addedSites, key)
-					rm.discoveredSites[key] = true
-				}
-			}
-
 			siteMetrics := SiteMetrics{
 				SiteName:    site.Name,
 				Label:       site.Name,
@@ -131,12 +152,13 @@ func (rm *RefreshManager) refreshAllSiteLists() {
 		}
 	}
 
-	// Find removed sites
-	var removedSites []string
-	for key := range currentSitesMap {
-		if !newSitesMap[key] {
-			removedSites = append(removedSites, key)
-		}
+	// Find added and removed sites
+	addedSites := findAddedSites(currentSitesMap, newSitesMap, rm.discoveredSites)
+	removedSites := findRemovedSites(currentSitesMap, newSitesMap)
+
+	// Mark newly added sites as discovered
+	for _, key := range addedSites {
+		rm.discoveredSites[key] = true
 	}
 
 	// Update collector
