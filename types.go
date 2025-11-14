@@ -10,6 +10,11 @@ type MetricData struct {
 	CacheHitRatio string `json:"cache_hit_ratio"`
 }
 
+// MetricsResponse represents the response from Terminus with timeseries wrapper
+type MetricsResponse struct {
+	Timeseries map[string]MetricData `json:"timeseries"`
+}
+
 // SiteConfig represents the site configuration (legacy format)
 type SiteConfig struct {
 	Name     string `json:"name"`

@@ -100,12 +100,12 @@ func parseSiteInfo(data []byte) (*SiteInfo, error) {
 
 // parseMetricsData parses metrics JSON data
 func parseMetricsData(data []byte) (map[string]MetricData, error) {
-	var metricsData map[string]MetricData
-	if err := json.Unmarshal(data, &metricsData); err != nil {
+	var response MetricsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("error parsing JSON: %w", err)
 	}
 
-	return metricsData, nil
+	return response.Timeseries, nil
 }
 
 // parseSiteList parses site list JSON data
@@ -125,12 +125,7 @@ func loadMetricsData(filename string) (map[string]MetricData, error) {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}
 
-	var metricsData map[string]MetricData
-	if err := json.Unmarshal(data, &metricsData); err != nil {
-		return nil, fmt.Errorf("error parsing JSON: %w", err)
-	}
-
-	return metricsData, nil
+	return parseMetricsData(data)
 }
 
 // loadSiteConfig loads site config from a JSON file (legacy format, used for testing)
