@@ -5,7 +5,7 @@
 repos:
   # General hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -20,26 +20,26 @@ repos:
     hooks:
       # Run go mod tidy
       - id: go-mod-tidy
-        stages: [commit]
+        stages: [pre-commit]
 
       # Run go fmt
       - id: go-fmt
-        stages: [commit]
+        stages: [pre-commit]
 
       # Run go vet
       - id: go-vet
-        stages: [commit]
+        stages: [pre-commit]
 
       # Run golangci-lint
       - id: golangci-lint
-        stages: [commit]
+        stages: [pre-commit]
         args: [--config=.golangci.yml]
 
       # Run go test
-      - id: go-test
-        stages: [commit]
+      - id: go-test-pkg
+        stages: [pre-commit]
         args: ["-race", "-cover"]
 
       # Run go build
-      - id: go-build
-        stages: [commit]
+      - id: go-build-pkg
+        stages: [pre-commit]
