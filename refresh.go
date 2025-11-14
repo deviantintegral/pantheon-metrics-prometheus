@@ -15,9 +15,10 @@ type RefreshManager struct {
 	refreshInterval time.Duration
 	collector       *PantheonCollector
 	mu              sync.Mutex
-	discoveredSites map[string]bool // Track sites discovered since app start (account:site format)
-	tickerInterval  time.Duration   // Interval for metrics refresh ticker (defaults to 1 minute)
-	tickerFireCount int64           // Counter for ticker fires (for testing)
+	discoveredSites map[string]bool   // Track sites discovered since app start (account:site format)
+	accountTokenMap map[string]string // Map from account email to token
+	tickerInterval  time.Duration     // Interval for metrics refresh ticker (defaults to 1 minute)
+	tickerFireCount int64             // Counter for ticker fires (for testing)
 }
 
 // NewRefreshManager creates a new refresh manager
@@ -28,6 +29,7 @@ func NewRefreshManager(tokens []string, environment string, refreshInterval time
 		refreshInterval: refreshInterval,
 		collector:       collector,
 		discoveredSites: make(map[string]bool),
+		accountTokenMap: make(map[string]string),
 		tickerInterval:  1 * time.Minute, // Default to 1 minute
 	}
 }
@@ -120,14 +122,26 @@ func (rm *RefreshManager) refreshAllSiteLists() {
 	totalSitesFound := 0
 
 	for _, token := range rm.tokens {
-		accountID := getAccountID(token)
-		log.Printf("Refreshing site list for account %s", accountID)
-
 		// Authenticate with this token
 		if err := authenticateWithToken(token); err != nil {
+			// Use token suffix as fallback for logging if auth fails
+			accountID := getAccountID(token)
 			log.Printf("Warning: Failed to authenticate account %s during refresh: %v", accountID, err)
 			continue
 		}
+
+		// Get the authenticated account email
+		accountID, err := getAuthenticatedAccountEmail()
+		if err != nil {
+			// Use token suffix as fallback if we can't get email
+			accountID = getAccountID(token)
+			log.Printf("Warning: Failed to get account email during refresh, using token suffix %s: %v", accountID, err)
+		}
+
+		// Store the mapping for later use
+		rm.accountTokenMap[accountID] = token
+
+		log.Printf("Refreshing site list for account %s", accountID)
 
 		// Fetch all sites for this account
 		siteList, err := fetchAllSites()
@@ -253,16 +267,9 @@ func (rm *RefreshManager) refreshMetricsWithQueue() {
 
 // refreshSiteMetrics refreshes metrics for a single site
 func (rm *RefreshManager) refreshSiteMetrics(accountID, siteName string) {
-	// Find the token for this account
-	var token string
-	for _, t := range rm.tokens {
-		if getAccountID(t) == accountID {
-			token = t
-			break
-		}
-	}
-
-	if token == "" {
+	// Find the token for this account from the mapping
+	token, ok := rm.accountTokenMap[accountID]
+	if !ok {
 		log.Printf("Warning: No token found for account %s", accountID)
 		return
 	}

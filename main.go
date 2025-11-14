@@ -57,12 +57,20 @@ func collectAccountMetrics(token, environment string) ([]SiteMetrics, int, int) 
 	successCount := 0
 	failCount := 0
 
-	accountID := getAccountID(token)
-
 	// Authenticate with this token
 	if err := authenticateWithToken(token); err != nil {
+		// Use token suffix as fallback for logging if auth fails
+		accountID := getAccountID(token)
 		log.Printf("Warning: Failed to authenticate account %s: %v", accountID, err)
 		return siteMetrics, successCount, failCount
+	}
+
+	// Get the authenticated account email
+	accountID, err := getAuthenticatedAccountEmail()
+	if err != nil {
+		// Use token suffix as fallback if we can't get email
+		accountID = getAccountID(token)
+		log.Printf("Warning: Failed to get account email, using token suffix %s: %v", accountID, err)
 	}
 
 	// Fetch all sites for this account
@@ -86,13 +94,22 @@ func collectAllSiteLists(tokens []string) []SiteMetrics {
 	var allSiteMetrics []SiteMetrics
 
 	for tokenIdx, token := range tokens {
-		accountID := getAccountID(token)
-		log.Printf("Loading site list for account %d/%d (ID: %s)", tokenIdx+1, len(tokens), accountID)
+		log.Printf("Loading site list for account %d/%d", tokenIdx+1, len(tokens))
 
 		// Authenticate with this token
 		if err := authenticateWithToken(token); err != nil {
+			// Use token suffix as fallback for logging if auth fails
+			accountID := getAccountID(token)
 			log.Printf("Warning: Failed to authenticate account %s: %v", accountID, err)
 			continue
+		}
+
+		// Get the authenticated account email
+		accountID, err := getAuthenticatedAccountEmail()
+		if err != nil {
+			// Use token suffix as fallback if we can't get email
+			accountID = getAccountID(token)
+			log.Printf("Warning: Failed to get account email, using token suffix %s: %v", accountID, err)
 		}
 
 		// Fetch all sites for this account
@@ -128,8 +145,7 @@ func collectAllMetrics(tokens []string, environment string) []SiteMetrics {
 	totalFailCount := 0
 
 	for tokenIdx, token := range tokens {
-		accountID := getAccountID(token)
-		log.Printf("Processing account %d/%d (ID: %s)", tokenIdx+1, len(tokens), accountID)
+		log.Printf("Processing account %d/%d", tokenIdx+1, len(tokens))
 
 		siteMetrics, successCount, failCount := collectAccountMetrics(token, environment)
 		allSiteMetrics = append(allSiteMetrics, siteMetrics...)

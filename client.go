@@ -29,12 +29,37 @@ func authenticateWithToken(token string) error {
 }
 
 // getAccountID returns an account identifier from a machine token (last 8 chars)
+// Deprecated: Use getAuthenticatedAccountEmail() after authentication instead
 func getAccountID(token string) string {
 	// Return last 8 characters of token for identification
 	if len(token) >= 8 {
 		return token[len(token)-8:]
 	}
 	return token
+}
+
+// WhoAmIResponse represents the response from terminus auth:whoami
+type WhoAmIResponse struct {
+	Email string `json:"email"`
+}
+
+// getAuthenticatedAccountEmail returns the email of the currently authenticated user
+func getAuthenticatedAccountEmail() (string, error) {
+	output, err := executeTerminusCommand("auth:whoami", "--format=json")
+	if err != nil {
+		return "", fmt.Errorf("failed to get authenticated user info: %w", err)
+	}
+
+	var whoami WhoAmIResponse
+	if err := json.Unmarshal(output, &whoami); err != nil {
+		return "", fmt.Errorf("failed to parse whoami response: %w", err)
+	}
+
+	if whoami.Email == "" {
+		return "", fmt.Errorf("email not found in whoami response")
+	}
+
+	return whoami.Email, nil
 }
 
 // fetchSiteInfo fetches site information from Terminus
