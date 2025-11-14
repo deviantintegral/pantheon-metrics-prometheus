@@ -45,8 +45,11 @@ func TestCreateRootHandler(t *testing.T) {
 	tokens := []string{"token1", "token2"}
 	environment := "live"
 
+	// Create collector with test data
+	collector := NewPantheonCollector(allSiteMetrics)
+
 	// Create the handler
-	handler := createRootHandler(environment, tokens, allSiteMetrics)
+	handler := createRootHandler(environment, tokens, collector)
 
 	// Test the handler
 	req := httptest.NewRequest("GET", "/", nil)
@@ -135,7 +138,10 @@ func TestCreateRootHandlerEmptyMetrics(t *testing.T) {
 	environment := "dev"
 	allSiteMetrics := []SiteMetrics{}
 
-	handler := createRootHandler(environment, tokens, allSiteMetrics)
+	// Create collector with empty data
+	collector := NewPantheonCollector(allSiteMetrics)
+
+	handler := createRootHandler(environment, tokens, collector)
 
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
@@ -186,7 +192,9 @@ func TestCreateRootHandlerMultipleEnvironments(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run("Environment_"+tc.environment, func(t *testing.T) {
 			tokens := []string{"token1"}
-			handler := createRootHandler(tc.environment, tokens, allSiteMetrics)
+			// Create collector with test data
+			collector := NewPantheonCollector(allSiteMetrics)
+			handler := createRootHandler(tc.environment, tokens, collector)
 
 			req := httptest.NewRequest("GET", "/", nil)
 			w := httptest.NewRecorder()
@@ -578,7 +586,7 @@ func TestSetupHTTPHandlers(t *testing.T) {
 	registry.MustRegister(collector)
 
 	// Setup HTTP handlers
-	setupHTTPHandlers(registry, environment, tokens, allSiteMetrics)
+	setupHTTPHandlers(registry, environment, tokens, collector)
 
 	// Test that the root handler works
 	req := httptest.NewRequest("GET", "/", nil)
