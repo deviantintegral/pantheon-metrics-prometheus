@@ -219,21 +219,21 @@ func TestMainEnvironmentValidation(t *testing.T) {
 	original := os.Getenv("PANTHEON_MACHINE_TOKENS")
 	defer func() {
 		if original != "" {
-			os.Setenv("PANTHEON_MACHINE_TOKENS", original)
+			_ = os.Setenv("PANTHEON_MACHINE_TOKENS", original)
 		} else {
-			os.Unsetenv("PANTHEON_MACHINE_TOKENS")
+			_ = os.Unsetenv("PANTHEON_MACHINE_TOKENS")
 		}
 	}()
 
 	// Test empty tokens
-	os.Setenv("PANTHEON_MACHINE_TOKENS", "")
+	_ = os.Setenv("PANTHEON_MACHINE_TOKENS", "")
 	tokensEnv := os.Getenv("PANTHEON_MACHINE_TOKENS")
 	if tokensEnv != "" {
 		t.Error("Expected empty tokens environment variable")
 	}
 
 	// Test with tokens
-	os.Setenv("PANTHEON_MACHINE_TOKENS", "token1 token2 token3")
+	_ = os.Setenv("PANTHEON_MACHINE_TOKENS", "token1 token2 token3")
 	tokensEnv = os.Getenv("PANTHEON_MACHINE_TOKENS")
 	tokens := strings.Fields(tokensEnv)
 
@@ -271,13 +271,13 @@ func TestMainMultipleAccountProcessing(t *testing.T) {
 		}
 
 		// Simulate some successful and failed site collections
-		if tokenIdx == 0 {
+		switch tokenIdx {
+		case 0:
 			totalSuccessCount += 5
-			totalFailCount += 1
-		} else if tokenIdx == 1 {
+			totalFailCount++
+		case 1:
 			totalSuccessCount += 3
-			totalFailCount += 0
-		} else {
+		default:
 			totalSuccessCount += 2
 			totalFailCount += 2
 		}
@@ -531,7 +531,7 @@ func TestProcessAccountSiteListEmpty(t *testing.T) {
 }
 
 // TestProcessAccountSiteListWithSites tests processAccountSiteList with sites
-func TestProcessAccountSiteListWithSites(t *testing.T) {
+func TestProcessAccountSiteListWithSites(_ *testing.T) {
 	siteList := map[string]SiteListEntry{
 		"site1": {
 			Name:      "site1",

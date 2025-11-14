@@ -266,13 +266,15 @@ func TestLoadMetricsDataInvalidJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpfile.Name())
+	defer func() {
+		_ = os.Remove(tmpfile.Name())
+	}()
 
 	// Write invalid JSON
 	if _, err := tmpfile.Write([]byte(`{"invalid": "json"`)); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
-	tmpfile.Close()
+	_ = tmpfile.Close()
 
 	// Try to load the invalid file
 	_, err = loadMetricsData(tmpfile.Name())
@@ -287,13 +289,15 @@ func TestLoadSiteConfigInvalidJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpfile.Name())
+	defer func() {
+		_ = os.Remove(tmpfile.Name())
+	}()
 
 	// Write invalid JSON
 	if _, err := tmpfile.Write([]byte(`{"invalid": "json"`)); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
-	tmpfile.Close()
+	_ = tmpfile.Close()
 
 	// Try to load the invalid file
 	_, err = loadSiteConfig(tmpfile.Name())
@@ -308,13 +312,15 @@ func TestLoadSiteInfoInvalidJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpfile.Name())
+	defer func() {
+		_ = os.Remove(tmpfile.Name())
+	}()
 
 	// Write invalid JSON
 	if _, err := tmpfile.Write([]byte(`{"invalid": "json"`)); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
-	tmpfile.Close()
+	_ = tmpfile.Close()
 
 	// Try to load the invalid file
 	_, err = loadSiteInfo(tmpfile.Name())
@@ -329,13 +335,15 @@ func TestLoadSiteListInvalidJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpfile.Name())
+	defer func() {
+		_ = os.Remove(tmpfile.Name())
+	}()
 
 	// Write invalid JSON
 	if _, err := tmpfile.Write([]byte(`{"invalid": "json"`)); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
-	tmpfile.Close()
+	_ = tmpfile.Close()
 
 	// Try to load the invalid file
 	_, err = loadSiteList(tmpfile.Name())

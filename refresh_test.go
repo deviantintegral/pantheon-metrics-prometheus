@@ -151,7 +151,7 @@ func TestRefreshManagerStart(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 }
 
-func TestRefreshMetricsWithQueueEmptySites(t *testing.T) {
+func TestRefreshMetricsWithQueueEmptySites(_ *testing.T) {
 	// Test refreshMetricsWithQueue with no sites
 	tokens := []string{"token1"}
 	environment := "live"
@@ -175,7 +175,7 @@ func TestRefreshMetricsWithQueueEmptySites(t *testing.T) {
 	}
 }
 
-func TestRefreshSiteMetricsWithInvalidToken(t *testing.T) {
+func TestRefreshSiteMetricsWithInvalidToken(_ *testing.T) {
 	// Test refreshSiteMetrics with an account that doesn't have a matching token
 	tokens := []string{"token1"}
 	environment := "live"
@@ -256,7 +256,7 @@ func TestRefreshManagerWithExistingSites(t *testing.T) {
 	}
 }
 
-func TestRefreshMetricsWithQueueWithSites(t *testing.T) {
+func TestRefreshMetricsWithQueueWithSites(_ *testing.T) {
 	// Test refreshMetricsWithQueue with actual sites
 	tokens := []string{"token1"}
 	environment := "live"
@@ -307,7 +307,7 @@ func TestRefreshMetricsWithQueueWithSites(t *testing.T) {
 	<-done
 }
 
-func TestRefreshAllSiteListsWithExistingSites(t *testing.T) {
+func TestRefreshAllSiteListsWithExistingSites(_ *testing.T) {
 	// Test refreshAllSiteLists when collector already has sites
 	tokens := []string{"token1"}
 	environment := "live"
@@ -345,7 +345,7 @@ func TestRefreshAllSiteListsWithExistingSites(t *testing.T) {
 	// This test exercises the code but won't successfully update sites
 }
 
-func TestRefreshSiteMetricsWithMatchingToken(t *testing.T) {
+func TestRefreshSiteMetricsWithMatchingToken(_ *testing.T) {
 	// Test refreshSiteMetrics with a token that matches via getAccountID
 	token := "1234567890abcdef1234567890abcdef"
 	accountID := getAccountID(token) // Should return "90abcdef"
@@ -360,7 +360,7 @@ func TestRefreshSiteMetricsWithMatchingToken(t *testing.T) {
 	manager.refreshSiteMetrics(accountID, "somesite")
 }
 
-func TestRefreshSiteListsPeriodically(t *testing.T) {
+func TestRefreshSiteListsPeriodically(_ *testing.T) {
 	// Test refreshSiteListsPeriodically starts and runs
 	tokens := []string{}
 	environment := "live"
@@ -384,7 +384,7 @@ func TestRefreshSiteListsPeriodically(t *testing.T) {
 	// If we get here without panic, test passes
 }
 
-func TestRefreshAllSiteListsMultipleTokens(t *testing.T) {
+func TestRefreshAllSiteListsMultipleTokens(_ *testing.T) {
 	// Test refreshAllSiteLists with multiple tokens
 	tokens := []string{"token1", "token2", "token3"}
 	environment := "live"
@@ -485,7 +485,7 @@ func TestRefreshMetricsWithQueueLongInterval(t *testing.T) {
 	<-done
 }
 
-func TestRefreshMetricsWithQueueManySites(t *testing.T) {
+func TestRefreshMetricsWithQueueManySites(_ *testing.T) {
 	// Test refreshMetricsWithQueue with many sites to exercise batching
 	tokens := []string{"token1"}
 	environment := "live"
