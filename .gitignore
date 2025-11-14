@@ -20,3 +20,6 @@ go.work
 
 # Test coverage
 *.html
+
+# Environment variables
+.env

@@ -1,0 +1,20 @@
+# Prometheus configuration for Pantheon Metrics Exporter
+
+global:
+  scrape_interval: 1m
+  scrape_timeout: 30s
+  evaluation_interval: 1m
+
+scrape_configs:
+  - job_name: 'pantheon-metrics'
+    static_configs:
+      - targets: ['pantheon-exporter:8080']
+        labels:
+          environment: 'docker compose'
+
+    # Scrape interval can be frequent since the exporter handles refresh internally
+    scrape_interval: 1m
+    scrape_timeout: 30s
+
+    # Honor timestamps from the exporter (important for historical metrics)
+    honor_timestamps: true
