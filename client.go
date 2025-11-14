@@ -38,9 +38,15 @@ func debugLog(format string, args ...interface{}) {
 
 // executeTerminusCommand executes a terminus CLI command and returns the output
 func executeTerminusCommand(args ...string) ([]byte, error) {
+	// Add -vvv flag for verbose output when debug mode is enabled
+	cmdArgs := args
+	if isDebugMode() {
+		cmdArgs = append([]string{"-vvv"}, args...)
+	}
+
 	// Mask sensitive data in debug logs
-	maskedArgs := make([]string, len(args))
-	copy(maskedArgs, args)
+	maskedArgs := make([]string, len(cmdArgs))
+	copy(maskedArgs, cmdArgs)
 	for i, arg := range maskedArgs {
 		if strings.HasPrefix(arg, "--machine-token=") {
 			maskedArgs[i] = "--machine-token=***MASKED***"
@@ -49,7 +55,7 @@ func executeTerminusCommand(args ...string) ([]byte, error) {
 
 	debugLog("Executing command: terminus %s", strings.Join(maskedArgs, " "))
 
-	cmd := exec.Command("terminus", args...)
+	cmd := exec.Command("terminus", cmdArgs...)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
