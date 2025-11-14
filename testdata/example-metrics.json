@@ -1,18 +1,20 @@
 {
+  "timeseries": {
     "1762732800": {
-        "datetime": "2025-11-10T00:00:00",
-        "visits": 837,
-        "pages_served": 3081,
-        "cache_hits": 119,
-        "cache_misses": 2962,
-        "cache_hit_ratio": "3.86%"
+      "datetime": "2025-11-10T00:00:00",
+      "visits": 837,
+      "pages_served": 3081,
+      "cache_hits": 119,
+      "cache_misses": 2962,
+      "cache_hit_ratio": "3.86%"
     },
     "1762819200": {
-        "datetime": "2025-11-11T00:00:00",
-        "visits": 824,
-        "pages_served": 2950,
-        "cache_hits": 151,
-        "cache_misses": 2799,
-        "cache_hit_ratio": "5.12%"
+      "datetime": "2025-11-11T00:00:00",
+      "visits": 824,
+      "pages_served": 2950,
+      "cache_hits": 151,
+      "cache_misses": 2799,
+      "cache_hit_ratio": "5.12%"
     }
+  }
 }
