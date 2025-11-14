@@ -11,6 +11,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const (
+	testEnvLive = "live"
+)
+
 // TestCreateRootHandler tests the createRootHandler function
 func TestCreateRootHandler(t *testing.T) {
 	// Create test data
@@ -43,7 +47,7 @@ func TestCreateRootHandler(t *testing.T) {
 	}
 
 	tokens := []string{"token1", "token2"}
-	environment := "live"
+	environment := testEnvLive
 
 	// Create collector with test data
 	collector := NewPantheonCollector(allSiteMetrics)
@@ -86,7 +90,7 @@ func TestCreateRootHandler(t *testing.T) {
 func TestCollectAccountMetrics(t *testing.T) {
 	// Test with a token - will fail due to no terminus but exercises the function
 	token := "1234567890abcdef1234567890abcdef"
-	environment := "live"
+	environment := testEnvLive
 
 	metrics, successCount, failCount := collectAccountMetrics(token, environment)
 
@@ -109,7 +113,7 @@ func TestCollectAllMetrics(t *testing.T) {
 		"1234567890abcdef1234567890abcdef",
 		"abcdef1234567890abcdef1234567890",
 	}
-	environment := "live"
+	environment := testEnvLive
 
 	metrics := collectAllMetrics(tokens, environment)
 
@@ -122,7 +126,7 @@ func TestCollectAllMetrics(t *testing.T) {
 // TestCollectAllMetricsEmptyTokens tests collectAllMetrics with empty tokens
 func TestCollectAllMetricsEmptyTokens(t *testing.T) {
 	tokens := []string{}
-	environment := "live"
+	environment := testEnvLive
 
 	metrics := collectAllMetrics(tokens, environment)
 
@@ -184,7 +188,7 @@ func TestCreateRootHandlerMultipleEnvironments(t *testing.T) {
 	testCases := []struct {
 		environment string
 	}{
-		{"live"},
+		{testEnvLive},
 		{"dev"},
 		{"test"},
 	}
@@ -297,8 +301,6 @@ func TestMainMultipleAccountProcessing(t *testing.T) {
 
 // TestMainSiteMetricsCollection tests the site metrics collection logic
 func TestMainSiteMetricsCollection(t *testing.T) {
-	var allSiteMetrics []SiteMetrics
-
 	// Simulate collecting metrics for multiple sites
 	sites := []struct {
 		name    string
@@ -309,6 +311,8 @@ func TestMainSiteMetricsCollection(t *testing.T) {
 		{"site2", "account1", "Performance"},
 		{"site3", "account2", "Elite"},
 	}
+
+	allSiteMetrics := make([]SiteMetrics, 0, len(sites))
 
 	for _, site := range sites {
 		metricsData := map[string]MetricData{
@@ -352,7 +356,7 @@ func TestMainSiteMetricsCollection(t *testing.T) {
 // TestMainRefreshManagerSetup tests refresh manager initialization logic
 func TestMainRefreshManagerSetup(t *testing.T) {
 	tokens := []string{"token1", "token2"}
-	environment := "live"
+	environment := testEnvLive
 	refreshInterval := 60
 
 	metricsData := map[string]MetricData{
@@ -517,7 +521,7 @@ func TestCreateSiteMetricsWithMultipleMetrics(t *testing.T) {
 // TestProcessAccountSiteListEmpty tests processAccountSiteList with empty site list
 func TestProcessAccountSiteListEmpty(t *testing.T) {
 	siteList := make(map[string]SiteListEntry)
-	metrics, successCount, failCount := processAccountSiteList("account1", "live", siteList)
+	metrics, successCount, failCount := processAccountSiteList("account1", testEnvLive, siteList)
 
 	if len(metrics) != 0 {
 		t.Errorf("Expected 0 metrics, got %d", len(metrics))
@@ -546,7 +550,7 @@ func TestProcessAccountSiteListWithSites(_ *testing.T) {
 	}
 
 	// This will fail because terminus is not available, but it exercises the code
-	metrics, successCount, failCount := processAccountSiteList("account1", "live", siteList)
+	metrics, successCount, failCount := processAccountSiteList("account1", testEnvLive, siteList)
 
 	// Since terminus is not available, all should fail
 	_ = metrics
@@ -578,7 +582,7 @@ func TestSetupHTTPHandlers(t *testing.T) {
 	}
 
 	tokens := []string{"token1"}
-	environment := "live"
+	environment := testEnvLive
 
 	// Create a collector and registry
 	collector := NewPantheonCollector(allSiteMetrics)
@@ -635,7 +639,7 @@ func TestStartRefreshManager(t *testing.T) {
 	}
 
 	tokens := []string{"token1"}
-	environment := "live"
+	environment := testEnvLive
 	refreshInterval := 1 * time.Minute
 
 	// Create collector
@@ -653,7 +657,7 @@ func TestStartRefreshManager(t *testing.T) {
 		t.Errorf("Expected 1 token, got %d", len(manager.tokens))
 	}
 
-	if manager.environment != "live" {
+	if manager.environment != testEnvLive {
 		t.Errorf("Expected environment 'live', got %s", manager.environment)
 	}
 }

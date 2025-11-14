@@ -26,7 +26,7 @@ func createSiteMetrics(siteName, accountID, planName string, metricsData map[str
 
 // processAccountSiteList processes a list of sites for an account and collects metrics
 func processAccountSiteList(accountID, environment string, siteList map[string]SiteListEntry) ([]SiteMetrics, int, int) {
-	var siteMetrics []SiteMetrics
+	siteMetrics := make([]SiteMetrics, 0, len(siteList))
 	successCount := 0
 	failCount := 0
 

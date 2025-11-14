@@ -1,3 +1,5 @@
+// Package main provides a Prometheus exporter for Pantheon site metrics.
+// It fetches metrics using the Terminus CLI and exposes them via HTTP.
 package main
 
 import (
@@ -145,7 +147,7 @@ func parseSiteList(data []byte) (map[string]SiteListEntry, error) {
 
 // loadMetricsData loads metrics data from a JSON file (used for testing)
 func loadMetricsData(filename string) (map[string]MetricData, error) {
-	data, err := os.ReadFile(filename)
+	data, err := os.ReadFile(filename) // #nosec G304 - test helper function, filename from test data
 	if err != nil {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}
@@ -155,7 +157,7 @@ func loadMetricsData(filename string) (map[string]MetricData, error) {
 
 // loadSiteConfig loads site config from a JSON file (legacy format, used for testing)
 func loadSiteConfig(filename string) (*SiteConfig, error) {
-	data, err := os.ReadFile(filename)
+	data, err := os.ReadFile(filename) // #nosec G304 - test helper function, filename from test data
 	if err != nil {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}
@@ -170,7 +172,7 @@ func loadSiteConfig(filename string) (*SiteConfig, error) {
 
 // loadSiteInfo loads site info from a JSON file (used for testing)
 func loadSiteInfo(filename string) (*SiteInfo, error) {
-	data, err := os.ReadFile(filename)
+	data, err := os.ReadFile(filename) // #nosec G304 - test helper function, filename from test data
 	if err != nil {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}
@@ -180,7 +182,7 @@ func loadSiteInfo(filename string) (*SiteInfo, error) {
 
 // loadSiteList loads site list from a JSON file (used for testing)
 func loadSiteList(filename string) (map[string]SiteListEntry, error) {
-	data, err := os.ReadFile(filename)
+	data, err := os.ReadFile(filename) // #nosec G304 - test helper function, filename from test data
 	if err != nil {
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}

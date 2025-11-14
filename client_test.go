@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+const (
+	testSiteName       = "site1234"
+	testSiteLabel      = "Example Site"
+	testSitePlanName   = "Performance Small"
+)
+
 func TestLoadMetricsData(t *testing.T) {
 	// Test loading metrics data from JSON file
 	metricsData, err := loadMetricsData("testdata/example-metrics.json")
@@ -61,16 +67,16 @@ func TestLoadSiteInfo(t *testing.T) {
 		t.Fatalf("Failed to load site info: %v", err)
 	}
 
-	if siteInfo.Name != "site1234" {
-		t.Errorf("Expected name=site1234, got %s", siteInfo.Name)
+	if siteInfo.Name != testSiteName {
+		t.Errorf("Expected name=%s, got %s", testSiteName, siteInfo.Name)
 	}
 
-	if siteInfo.Label != "Example Site" {
-		t.Errorf("Expected label=Example Site, got %s", siteInfo.Label)
+	if siteInfo.Label != testSiteLabel {
+		t.Errorf("Expected label=%s, got %s", testSiteLabel, siteInfo.Label)
 	}
 
-	if siteInfo.PlanName != "Performance Small" {
-		t.Errorf("Expected plan_name=Performance Small, got %s", siteInfo.PlanName)
+	if siteInfo.PlanName != testSitePlanName {
+		t.Errorf("Expected plan_name=%s, got %s", testSitePlanName, siteInfo.PlanName)
 	}
 }
 
@@ -139,16 +145,16 @@ func TestParseSiteInfoFromTerminus(t *testing.T) {
 		t.Fatalf("Failed to parse site info: %v", err)
 	}
 
-	if siteInfo.Name != "site1234" {
-		t.Errorf("Expected name=site1234, got %s", siteInfo.Name)
+	if siteInfo.Name != testSiteName {
+		t.Errorf("Expected name=%s, got %s", testSiteName, siteInfo.Name)
 	}
 
-	if siteInfo.Label != "Example Site" {
-		t.Errorf("Expected label=Example Site, got %s", siteInfo.Label)
+	if siteInfo.Label != testSiteLabel {
+		t.Errorf("Expected label=%s, got %s", testSiteLabel, siteInfo.Label)
 	}
 
-	if siteInfo.PlanName != "Performance Small" {
-		t.Errorf("Expected plan_name=Performance Small, got %s", siteInfo.PlanName)
+	if siteInfo.PlanName != testSitePlanName {
+		t.Errorf("Expected plan_name=%s, got %s", testSitePlanName, siteInfo.PlanName)
 	}
 }
 
