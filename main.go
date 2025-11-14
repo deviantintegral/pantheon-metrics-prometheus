@@ -102,8 +102,10 @@ func collectAllMetrics(tokens []string, environment string) []SiteMetrics {
 }
 
 // createRootHandler creates the HTTP handler for the root path
-func createRootHandler(environment string, tokens []string, allSiteMetrics []SiteMetrics) http.HandlerFunc {
+func createRootHandler(environment string, tokens []string, collector *PantheonCollector) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		allSiteMetrics := collector.GetSites()
+
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprintf(w, `
 <html>
@@ -131,18 +133,17 @@ func createRootHandler(environment string, tokens []string, allSiteMetrics []Sit
 }
 
 // setupHTTPHandlers sets up HTTP routes for the metrics exporter
-func setupHTTPHandlers(registry *prometheus.Registry, environment string, tokens []string, allSiteMetrics []SiteMetrics) {
+func setupHTTPHandlers(registry *prometheus.Registry, environment string, tokens []string, collector *PantheonCollector) {
 	// Create HTTP handler for metrics
 	http.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 
 	// Root handler with instructions
-	http.HandleFunc("/", createRootHandler(environment, tokens, allSiteMetrics))
+	http.HandleFunc("/", createRootHandler(environment, tokens, collector))
 }
 
 // startRefreshManager creates and starts the refresh manager
 func startRefreshManager(tokens []string, environment string, refreshInterval time.Duration, collector *PantheonCollector) *RefreshManager {
 	refreshManager := NewRefreshManager(tokens, environment, refreshInterval, collector)
-	refreshManager.InitializeDiscoveredSites()
 	refreshManager.Start()
 	return refreshManager
 }
@@ -168,33 +169,40 @@ func main() {
 
 	log.Printf("Found %d Pantheon account(s) to process", len(tokens))
 
-	// Collect metrics for all accounts and sites
-	allSiteMetrics := collectAllMetrics(tokens, *environment)
-
-	if len(allSiteMetrics) == 0 {
-		log.Fatal("No site metrics were collected. Cannot start exporter.")
-	}
-
-	// Create collector with all site metrics
-	collector := NewPantheonCollector(allSiteMetrics)
+	// Create collector with empty sites initially
+	collector := NewPantheonCollector([]SiteMetrics{})
 
 	// Register the collector
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(collector)
 
 	// Setup HTTP handlers
-	setupHTTPHandlers(registry, *environment, tokens, allSiteMetrics)
+	setupHTTPHandlers(registry, *environment, tokens, collector)
 
 	// Start refresh manager
 	refreshIntervalDuration := time.Duration(*refreshInterval) * time.Minute
-	startRefreshManager(tokens, *environment, refreshIntervalDuration, collector)
+	refreshManager := startRefreshManager(tokens, *environment, refreshIntervalDuration, collector)
 	log.Printf("Refresh manager started (interval: %d minutes)", *refreshInterval)
+
+	// Collect initial metrics in background goroutine
+	go func() {
+		log.Printf("Starting initial metrics collection in background...")
+		allSiteMetrics := collectAllMetrics(tokens, *environment)
+
+		if len(allSiteMetrics) == 0 {
+			log.Printf("Warning: No site metrics were collected during initial load")
+		} else {
+			log.Printf("Initial metrics collection complete: %d sites loaded", len(allSiteMetrics))
+			collector.UpdateSites(allSiteMetrics)
+			refreshManager.InitializeDiscoveredSites()
+		}
+	}()
 
 	// Start server
 	serverAddr := ":" + *port
 	log.Printf("Starting Pantheon metrics exporter on %s", serverAddr)
-	log.Printf("Exporting metrics for %d sites", len(allSiteMetrics))
 	log.Printf("Metrics available at http://localhost%s/metrics", serverAddr)
+	log.Printf("Server is ready to serve requests (metrics collection running in background)")
 	if err := http.ListenAndServe(serverAddr, nil); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}

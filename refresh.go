@@ -178,31 +178,33 @@ func (rm *RefreshManager) refreshAllSiteLists() {
 
 // refreshMetricsWithQueue processes metrics refresh using a queue to prevent stampedes
 func (rm *RefreshManager) refreshMetricsWithQueue() {
-	sites := rm.collector.GetSites()
-	if len(sites) == 0 {
-		log.Printf("No sites to refresh metrics for")
-		return
-	}
-
-	// Calculate how many sites to process per minute
-	totalSites := len(sites)
-	refreshMinutes := rm.refreshInterval.Minutes()
-	sitesPerMinute := int(math.Ceil(float64(totalSites) / refreshMinutes))
-
-	log.Printf("Metrics refresh: processing %d sites per minute (%d sites total, %.0f minute interval)",
-		sitesPerMinute, totalSites, refreshMinutes)
-
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
 	siteIndex := 0
+	lastTotalSites := 0
 
 	for range ticker.C {
-		// Refresh site list to get current sites
+		// Get current sites
 		currentSites := rm.collector.GetSites()
 		if len(currentSites) == 0 {
+			log.Printf("Waiting for sites to be populated before starting metrics refresh...")
 			continue
 		}
+
+		// If this is the first time we have sites, log the configuration
+		if lastTotalSites == 0 && len(currentSites) > 0 {
+			totalSites := len(currentSites)
+			refreshMinutes := rm.refreshInterval.Minutes()
+			sitesPerMinute := int(math.Ceil(float64(totalSites) / refreshMinutes))
+			log.Printf("Metrics refresh: processing %d sites per minute (%d sites total, %.0f minute interval)",
+				sitesPerMinute, totalSites, refreshMinutes)
+		}
+
+		// Recalculate sites per minute in case site count has changed
+		totalSites := len(currentSites)
+		refreshMinutes := rm.refreshInterval.Minutes()
+		sitesPerMinute := int(math.Ceil(float64(totalSites) / refreshMinutes))
 
 		// Reset index if it exceeds current site count
 		if siteIndex >= len(currentSites) {
@@ -228,6 +230,8 @@ func (rm *RefreshManager) refreshMetricsWithQueue() {
 			siteIndex = 0
 			log.Printf("Completed full metrics refresh cycle, starting over")
 		}
+
+		lastTotalSites = totalSites
 	}
 }
 
