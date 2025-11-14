@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"math"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -14,7 +13,6 @@ type RefreshManager struct {
 	environment     string
 	refreshInterval time.Duration
 	collector       *PantheonCollector
-	mu              sync.Mutex
 	discoveredSites map[string]bool   // Track sites discovered since app start (account:site format)
 	accountTokenMap map[string]string // Map from account email to token
 	tickerInterval  time.Duration     // Interval for metrics refresh ticker (defaults to 1 minute)

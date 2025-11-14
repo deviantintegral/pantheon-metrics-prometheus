@@ -6,6 +6,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const (
+	testCollectorSite1 = "site1"
+)
+
 func TestNewPantheonCollector(t *testing.T) {
 	// Test creating a new collector with multiple sites
 	metricsData := map[string]MetricData{
@@ -21,7 +25,7 @@ func TestNewPantheonCollector(t *testing.T) {
 
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -90,7 +94,7 @@ func TestCollect(t *testing.T) {
 
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -142,7 +146,7 @@ func TestCollectWithMultipleSites(t *testing.T) {
 
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -190,7 +194,7 @@ func TestCollectWithInvalidTimestamp(t *testing.T) {
 
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -230,7 +234,7 @@ func TestCollectWithInvalidCacheHitRatio(t *testing.T) {
 
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -271,7 +275,7 @@ func TestUpdateSites(t *testing.T) {
 
 	initialSites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -343,7 +347,7 @@ func TestGetSites(t *testing.T) {
 
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -361,7 +365,7 @@ func TestGetSites(t *testing.T) {
 		t.Errorf("Expected 1 site, got %d", len(retrievedSites))
 	}
 
-	if retrievedSites[0].SiteName != "site1" {
+	if retrievedSites[0].SiteName != testCollectorSite1 {
 		t.Errorf("Expected site name 'site1', got %s", retrievedSites[0].SiteName)
 	}
 
@@ -370,7 +374,7 @@ func TestGetSites(t *testing.T) {
 
 	// Get sites again and verify original is unchanged
 	retrievedSites2 := collector.GetSites()
-	if retrievedSites2[0].SiteName != "site1" {
+	if retrievedSites2[0].SiteName != testCollectorSite1 {
 		t.Errorf("Expected original site name 'site1' to be unchanged, got %s", retrievedSites2[0].SiteName)
 	}
 }
@@ -390,7 +394,7 @@ func TestUpdateSiteMetrics(t *testing.T) {
 
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -420,7 +424,7 @@ func TestUpdateSiteMetrics(t *testing.T) {
 	}
 
 	// Update metrics for site1
-	collector.UpdateSiteMetrics("account1", "site1", newMetrics)
+	collector.UpdateSiteMetrics("account1", testCollectorSite1, newMetrics)
 
 	// Get sites and verify only site1 was updated
 	updatedSites := collector.GetSites()
@@ -454,7 +458,7 @@ func TestUpdateSiteMetricsNonExistent(t *testing.T) {
 
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -494,7 +498,7 @@ func TestCollectWithEmptyMetricsData(t *testing.T) {
 	// Test Collect with sites that have empty metrics data
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -534,7 +538,7 @@ func TestCollectWithNoCacheHitRatioPercentSign(t *testing.T) {
 
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -603,7 +607,7 @@ func TestUpdateSitesWithEmptyArray(t *testing.T) {
 
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -638,7 +642,7 @@ func TestCollectWithZeroValues(t *testing.T) {
 
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -678,7 +682,7 @@ func TestCollectWithLargeNumbers(t *testing.T) {
 
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -717,7 +721,7 @@ func TestCollectWithNegativeTimestamp(t *testing.T) {
 
 	sites := []SiteMetrics{
 		{
-			SiteName:    "site1",
+			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",

@@ -5,10 +5,15 @@ import (
 	"time"
 )
 
+const (
+	testEnvDev  = "dev"
+	testToken32 = "1234567890abcdef1234567890abcdef"
+)
+
 func TestNewRefreshManager(t *testing.T) {
 	// Test creating a new refresh manager
 	tokens := []string{"token1", "token2"}
-	environment := "live"
+	environment := testEnvLive
 	refreshInterval := 60 * time.Minute
 
 	metricsData := map[string]MetricData{
@@ -44,7 +49,7 @@ func TestNewRefreshManager(t *testing.T) {
 		t.Errorf("Expected 2 tokens, got %d", len(manager.tokens))
 	}
 
-	if manager.environment != "live" {
+	if manager.environment != testEnvLive {
 		t.Errorf("Expected environment 'live', got %s", manager.environment)
 	}
 
@@ -60,7 +65,7 @@ func TestNewRefreshManager(t *testing.T) {
 func TestNewRefreshManagerWithMultipleTokens(t *testing.T) {
 	// Test creating a refresh manager with multiple tokens
 	tokens := []string{"token1", "token2", "token3", "token4"}
-	environment := "dev"
+	environment := testEnvDev
 	refreshInterval := 30 * time.Minute
 
 	sites := []SiteMetrics{}
@@ -72,7 +77,7 @@ func TestNewRefreshManagerWithMultipleTokens(t *testing.T) {
 		t.Errorf("Expected 4 tokens, got %d", len(manager.tokens))
 	}
 
-	if manager.environment != "dev" {
+	if manager.environment != testEnvDev {
 		t.Errorf("Expected environment 'dev', got %s", manager.environment)
 	}
 
@@ -104,7 +109,7 @@ func TestNewRefreshManagerWithEmptyTokens(t *testing.T) {
 func TestNewRefreshManagerWithDifferentIntervals(t *testing.T) {
 	// Test creating refresh managers with different intervals
 	tokens := []string{"token1"}
-	environment := "live"
+	environment := testEnvLive
 	sites := []SiteMetrics{}
 	collector := NewPantheonCollector(sites)
 
@@ -130,7 +135,7 @@ func TestNewRefreshManagerWithDifferentIntervals(t *testing.T) {
 func TestRefreshManagerStart(t *testing.T) {
 	// Test that Start() launches goroutines without panicking
 	tokens := []string{}
-	environment := "live"
+	environment := testEnvLive
 	sites := []SiteMetrics{}
 	collector := NewPantheonCollector(sites)
 	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
@@ -151,10 +156,10 @@ func TestRefreshManagerStart(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 }
 
-func TestRefreshMetricsWithQueueEmptySites(t *testing.T) {
+func TestRefreshMetricsWithQueueEmptySites(_ *testing.T) {
 	// Test refreshMetricsWithQueue with no sites
 	tokens := []string{"token1"}
-	environment := "live"
+	environment := testEnvLive
 	sites := []SiteMetrics{} // Empty sites
 	collector := NewPantheonCollector(sites)
 	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
@@ -175,10 +180,10 @@ func TestRefreshMetricsWithQueueEmptySites(t *testing.T) {
 	}
 }
 
-func TestRefreshSiteMetricsWithInvalidToken(t *testing.T) {
+func TestRefreshSiteMetricsWithInvalidToken(_ *testing.T) {
 	// Test refreshSiteMetrics with an account that doesn't have a matching token
 	tokens := []string{"token1"}
-	environment := "live"
+	environment := testEnvLive
 	sites := []SiteMetrics{}
 	collector := NewPantheonCollector(sites)
 	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
@@ -193,7 +198,7 @@ func TestRefreshSiteMetricsWithInvalidToken(t *testing.T) {
 func TestRefreshAllSiteListsEmptyTokens(t *testing.T) {
 	// Test refreshAllSiteLists with empty tokens
 	tokens := []string{}
-	environment := "live"
+	environment := testEnvLive
 	sites := []SiteMetrics{}
 	collector := NewPantheonCollector(sites)
 	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
@@ -211,7 +216,7 @@ func TestRefreshAllSiteListsEmptyTokens(t *testing.T) {
 func TestRefreshManagerWithExistingSites(t *testing.T) {
 	// Test refresh manager behavior with existing sites in collector
 	tokens := []string{"token1", "token2"}
-	environment := "dev"
+	environment := testEnvDev
 
 	metricsData := map[string]MetricData{
 		"1762732800": {
@@ -251,15 +256,15 @@ func TestRefreshManagerWithExistingSites(t *testing.T) {
 	}
 
 	// Verify manager properties
-	if manager.environment != "dev" {
+	if manager.environment != testEnvDev {
 		t.Errorf("Expected environment 'dev', got %s", manager.environment)
 	}
 }
 
-func TestRefreshMetricsWithQueueWithSites(t *testing.T) {
+func TestRefreshMetricsWithQueueWithSites(_ *testing.T) {
 	// Test refreshMetricsWithQueue with actual sites
 	tokens := []string{"token1"}
-	environment := "live"
+	environment := testEnvLive
 
 	metricsData := map[string]MetricData{
 		"1762732800": {
@@ -307,10 +312,10 @@ func TestRefreshMetricsWithQueueWithSites(t *testing.T) {
 	<-done
 }
 
-func TestRefreshAllSiteListsWithExistingSites(t *testing.T) {
+func TestRefreshAllSiteListsWithExistingSites(_ *testing.T) {
 	// Test refreshAllSiteLists when collector already has sites
 	tokens := []string{"token1"}
-	environment := "live"
+	environment := testEnvLive
 
 	metricsData := map[string]MetricData{
 		"1762732800": {
@@ -345,13 +350,13 @@ func TestRefreshAllSiteListsWithExistingSites(t *testing.T) {
 	// This test exercises the code but won't successfully update sites
 }
 
-func TestRefreshSiteMetricsWithMatchingToken(t *testing.T) {
+func TestRefreshSiteMetricsWithMatchingToken(_ *testing.T) {
 	// Test refreshSiteMetrics with a token that matches via getAccountID
-	token := "1234567890abcdef1234567890abcdef"
+	token := testToken32
 	accountID := getAccountID(token) // Should return "90abcdef"
 
 	tokens := []string{token}
-	environment := "live"
+	environment := testEnvLive
 	sites := []SiteMetrics{}
 	collector := NewPantheonCollector(sites)
 	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
@@ -360,10 +365,10 @@ func TestRefreshSiteMetricsWithMatchingToken(t *testing.T) {
 	manager.refreshSiteMetrics(accountID, "somesite")
 }
 
-func TestRefreshSiteListsPeriodically(t *testing.T) {
+func TestRefreshSiteListsPeriodically(_ *testing.T) {
 	// Test refreshSiteListsPeriodically starts and runs
 	tokens := []string{}
-	environment := "live"
+	environment := testEnvLive
 	sites := []SiteMetrics{}
 	collector := NewPantheonCollector(sites)
 	manager := NewRefreshManager(tokens, environment, 50*time.Millisecond, collector)
@@ -384,10 +389,10 @@ func TestRefreshSiteListsPeriodically(t *testing.T) {
 	// If we get here without panic, test passes
 }
 
-func TestRefreshAllSiteListsMultipleTokens(t *testing.T) {
+func TestRefreshAllSiteListsMultipleTokens(_ *testing.T) {
 	// Test refreshAllSiteLists with multiple tokens
 	tokens := []string{"token1", "token2", "token3"}
-	environment := "live"
+	environment := testEnvLive
 
 	metricsData := map[string]MetricData{
 		"1762732800": {
@@ -426,10 +431,10 @@ func TestRefreshAllSiteListsMultipleTokens(t *testing.T) {
 	manager.refreshAllSiteLists()
 }
 
-func TestRefreshMetricsWithQueueLongInterval(t *testing.T) {
-	// Test refreshMetricsWithQueue with a longer interval
+// testRefreshMetricsWithQueueHelper is a helper function to test refreshMetricsWithQueue
+func testRefreshMetricsWithQueueHelper(interval, sleepDuration time.Duration) {
 	tokens := []string{"token1"}
-	environment := "live"
+	environment := testEnvLive
 
 	metricsData := map[string]MetricData{
 		"1762732800": {
@@ -442,7 +447,6 @@ func TestRefreshMetricsWithQueueLongInterval(t *testing.T) {
 		},
 	}
 
-	// Create more sites to test batching logic
 	sites := []SiteMetrics{
 		{
 			SiteName:    "site1",
@@ -468,27 +472,28 @@ func TestRefreshMetricsWithQueueLongInterval(t *testing.T) {
 	}
 
 	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 3*time.Minute, collector)
+	manager := NewRefreshManager(tokens, environment, interval, collector)
 
-	// Start the refresh queue in background
 	done := make(chan bool, 1)
 	go func() {
-		// Let it run for a short time
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(sleepDuration)
 		done <- true
 	}()
 
-	// Start the refresh
 	go manager.refreshMetricsWithQueue()
 
-	// Wait for timeout
 	<-done
 }
 
-func TestRefreshMetricsWithQueueManySites(t *testing.T) {
+func TestRefreshMetricsWithQueueLongInterval(_ *testing.T) {
+	// Test refreshMetricsWithQueue with a longer interval
+	testRefreshMetricsWithQueueHelper(3*time.Minute, 50*time.Millisecond)
+}
+
+func TestRefreshMetricsWithQueueManySites(_ *testing.T) {
 	// Test refreshMetricsWithQueue with many sites to exercise batching
 	tokens := []string{"token1"}
-	environment := "live"
+	environment := testEnvLive
 
 	metricsData := map[string]MetricData{
 		"1762732800": {
@@ -531,69 +536,15 @@ func TestRefreshMetricsWithQueueManySites(t *testing.T) {
 	<-done
 }
 
-func TestRefreshMetricsWithQueueShortInterval(t *testing.T) {
+func TestRefreshMetricsWithQueueShortInterval(_ *testing.T) {
 	// Test refreshMetricsWithQueue with a very short interval to exercise ticker logic
-	tokens := []string{"token1"}
-	environment := "live"
-
-	metricsData := map[string]MetricData{
-		"1762732800": {
-			DateTime:      "2025-11-10T00:00:00",
-			Visits:        100,
-			PagesServed:   500,
-			CacheHits:     50,
-			CacheMisses:   450,
-			CacheHitRatio: "10%",
-		},
-	}
-
-	// Create several sites
-	sites := []SiteMetrics{
-		{
-			SiteName:    "site1",
-			Label:       "Site 1",
-			PlanName:    "Basic",
-			Account:     "token1id",
-			MetricsData: metricsData,
-		},
-		{
-			SiteName:    "site2",
-			Label:       "Site 2",
-			PlanName:    "Performance",
-			Account:     "token1id",
-			MetricsData: metricsData,
-		},
-		{
-			SiteName:    "site3",
-			Label:       "Site 3",
-			PlanName:    "Elite",
-			Account:     "token1id",
-			MetricsData: metricsData,
-		},
-	}
-
-	collector := NewPantheonCollector(sites)
-	// Use a very short interval (3 minutes) which means 1 site per minute
-	manager := NewRefreshManager(tokens, environment, 3*time.Minute, collector)
-
-	// Note: refreshMetricsWithQueue uses 1-minute ticker internally
-	// We can't actually test the ticker firing in a unit test
-	// But we can at least exercise the initialization logic
-	done := make(chan bool, 1)
-	go func() {
-		time.Sleep(10 * time.Millisecond)
-		done <- true
-	}()
-
-	go manager.refreshMetricsWithQueue()
-
-	<-done
+	testRefreshMetricsWithQueueHelper(3*time.Minute, 10*time.Millisecond)
 }
 
 func TestRefreshMetricsWithQueueTickerFires(t *testing.T) {
 	// Test that the ticker actually fires and processes sites
 	tokens := []string{"token1"}
-	environment := "live"
+	environment := testEnvLive
 
 	metricsData := map[string]MetricData{
 		"1762732800": {
@@ -645,7 +596,7 @@ func TestRefreshMetricsWithQueueTickerFires(t *testing.T) {
 func TestInitializeDiscoveredSites(t *testing.T) {
 	// Test InitializeDiscoveredSites with no sites
 	tokens := []string{"token1"}
-	environment := "live"
+	environment := testEnvLive
 	sites := []SiteMetrics{}
 	collector := NewPantheonCollector(sites)
 	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
@@ -660,7 +611,7 @@ func TestInitializeDiscoveredSites(t *testing.T) {
 func TestInitializeDiscoveredSitesWithSites(t *testing.T) {
 	// Test InitializeDiscoveredSites with multiple sites
 	tokens := []string{"token1"}
-	environment := "live"
+	environment := testEnvLive
 
 	metricsData := map[string]MetricData{
 		"1762732800": {
@@ -724,7 +675,7 @@ func TestInitializeDiscoveredSitesWithSites(t *testing.T) {
 func TestInitializeDiscoveredSitesDuplicateAccounts(t *testing.T) {
 	// Test InitializeDiscoveredSites with multiple sites from same account
 	tokens := []string{"token1"}
-	environment := "live"
+	environment := testEnvLive
 
 	metricsData := map[string]MetricData{
 		"1762732800": {
