@@ -70,7 +70,8 @@ func collectAccountMetrics(token, environment string) ([]SiteMetrics, int, int) 
 	if err != nil {
 		// Use token suffix as fallback if we can't get email
 		accountID = getAccountID(token)
-		log.Printf("Warning: Failed to get account email, using token suffix %s: %v", accountID, err)
+		log.Printf("Warning: Failed to get account email %s: %v", accountID, err)
+		return siteMetrics, successCount, failCount
 	}
 
 	// Fetch all sites for this account
