@@ -29,7 +29,31 @@ A Go application that fetches Pantheon site metrics using the Terminus CLI and e
 
 ## Installation
 
-### Option 1: Download Pre-built Binary (Recommended)
+### Option 1: Docker Compose (Recommended for Testing)
+
+The easiest way to get started is with Docker Compose, which includes Prometheus and Grafana with a pre-configured dashboard:
+
+```bash
+# 1. Copy the environment template
+cp .env.example .env
+
+# 2. Edit .env and add your Pantheon machine token(s)
+vim .env
+
+# 3. Start all services (exporter, Prometheus, and Grafana)
+docker compose up -d
+```
+
+Access the services:
+- Exporter: http://localhost:8080
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000 (admin/admin)
+
+The Grafana instance comes with a pre-loaded "Pantheon Metrics Overview" dashboard ready to use!
+
+For detailed Docker documentation, see [DOCKER.md](DOCKER.md).
+
+### Option 2: Download Pre-built Binary (Recommended)
 
 Download the latest release for your platform from the [releases page](https://github.com/deviantintegral/pantheon-metrics-prometheus/releases/latest).
 
@@ -45,7 +69,7 @@ tar -xzf pantheon-metrics-prometheus_VERSION_linux_x86_64.tar.gz
 chmod +x pantheon-metrics-exporter
 ```
 
-### Option 2: Build from Source
+### Option 3: Build from Source
 
 ```bash
 go build -o pantheon-metrics-exporter ./cmd/pantheon-metrics-exporter
