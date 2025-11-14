@@ -81,6 +81,46 @@ func collectAccountMetrics(token, environment string) ([]SiteMetrics, int, int) 
 	return siteMetrics, successCount, failCount
 }
 
+// collectAllSiteLists collects site lists for all accounts without fetching metrics
+func collectAllSiteLists(tokens []string) []SiteMetrics {
+	var allSiteMetrics []SiteMetrics
+
+	for tokenIdx, token := range tokens {
+		accountID := getAccountID(token)
+		log.Printf("Loading site list for account %d/%d (ID: %s)", tokenIdx+1, len(tokens), accountID)
+
+		// Authenticate with this token
+		if err := authenticateWithToken(token); err != nil {
+			log.Printf("Warning: Failed to authenticate account %s: %v", accountID, err)
+			continue
+		}
+
+		// Fetch all sites for this account
+		siteList, err := fetchAllSites()
+		if err != nil {
+			log.Printf("Warning: Failed to fetch site list for account %s: %v", accountID, err)
+			continue
+		}
+
+		log.Printf("Account %s: Found %d sites", accountID, len(siteList))
+
+		// Create site metrics entries with empty metrics data
+		for _, site := range siteList {
+			siteMetrics := SiteMetrics{
+				SiteName:    site.Name,
+				Label:       site.Name,
+				PlanName:    site.PlanName,
+				Account:     accountID,
+				MetricsData: make(map[string]MetricData),
+			}
+			allSiteMetrics = append(allSiteMetrics, siteMetrics)
+		}
+	}
+
+	log.Printf("Site list collection complete: %d sites found across %d accounts", len(allSiteMetrics), len(tokens))
+	return allSiteMetrics
+}
+
 // collectAllMetrics collects metrics for all accounts
 func collectAllMetrics(tokens []string, environment string) []SiteMetrics {
 	var allSiteMetrics []SiteMetrics
@@ -169,8 +209,12 @@ func main() {
 
 	log.Printf("Found %d Pantheon account(s) to process", len(tokens))
 
-	// Create collector with empty sites initially
-	collector := NewPantheonCollector([]SiteMetrics{})
+	// Collect site lists first (fast - no metrics)
+	log.Printf("Loading site lists...")
+	allSites := collectAllSiteLists(tokens)
+
+	// Create collector with sites (empty metrics initially)
+	collector := NewPantheonCollector(allSites)
 
 	// Register the collector
 	registry := prometheus.NewRegistry()
@@ -182,6 +226,7 @@ func main() {
 	// Start refresh manager
 	refreshIntervalDuration := time.Duration(*refreshInterval) * time.Minute
 	refreshManager := startRefreshManager(tokens, *environment, refreshIntervalDuration, collector)
+	refreshManager.InitializeDiscoveredSites()
 	log.Printf("Refresh manager started (interval: %d minutes)", *refreshInterval)
 
 	// Collect initial metrics in background goroutine
@@ -189,12 +234,9 @@ func main() {
 		log.Printf("Starting initial metrics collection in background...")
 		allSiteMetrics := collectAllMetrics(tokens, *environment)
 
-		if len(allSiteMetrics) == 0 {
-			log.Printf("Warning: No site metrics were collected during initial load")
-		} else {
-			log.Printf("Initial metrics collection complete: %d sites loaded", len(allSiteMetrics))
+		if len(allSiteMetrics) > 0 {
+			log.Printf("Initial metrics collection complete: %d sites with metrics", len(allSiteMetrics))
 			collector.UpdateSites(allSiteMetrics)
-			refreshManager.InitializeDiscoveredSites()
 		}
 	}()
 
