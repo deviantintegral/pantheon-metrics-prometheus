@@ -79,17 +79,21 @@ And include a `BREAKING CHANGE:` section in the PR description explaining the im
 ## Pull Request Process
 
 1. **Update documentation** if you're adding or changing functionality
-2. **Run all tests** and ensure they pass:
+2. **Run linting** to catch code quality issues:
+   ```bash
+   golangci-lint run
+   ```
+3. **Run all tests** and ensure they pass:
    ```bash
    go test -v -race ./...
    go vet ./...
    ```
-3. **Build the project** to ensure it compiles:
+4. **Build the project** to ensure it compiles:
    ```bash
    go build -v -o pantheon-metrics-exporter
    ```
-4. **Create your PR** with a conventional commit title
-5. **Fill out the PR description** explaining:
+5. **Create your PR** with a conventional commit title
+6. **Fill out the PR description** explaining:
    - What changes you made
    - Why you made them
    - How to test them
@@ -102,6 +106,46 @@ We use automated checks to validate PR titles. If your PR title doesn't follow t
 You can bypass this check by adding the `skip-conventional-commits` label, but please only use this for exceptional cases (like automated dependency PRs).
 
 ## Coding Standards
+
+### Code Quality Tools
+
+We use [golangci-lint](https://golangci-lint.run/) to maintain code quality. The linter runs automatically in CI, but you should run it locally before submitting PRs:
+
+```bash
+# Run all configured linters
+golangci-lint run
+
+# Run with auto-fix for some issues
+golangci-lint run --fix
+```
+
+#### Pre-commit Hooks (Recommended)
+
+We strongly recommend using pre-commit hooks to automatically check your code before committing:
+
+1. Install [pre-commit](https://pre-commit.com/):
+   ```bash
+   # Using pip
+   pip install pre-commit
+
+   # Or using homebrew (macOS)
+   brew install pre-commit
+   ```
+
+2. Install the git hooks:
+   ```bash
+   pre-commit install
+   ```
+
+The pre-commit hooks will automatically run:
+- `go mod tidy` - Keep dependencies tidy
+- `go fmt` - Format code
+- `go vet` - Check for suspicious constructs
+- `golangci-lint` - Run all configured linters
+- `go test` - Run tests with race detector and coverage
+- `go build` - Verify the project builds
+
+This ensures your code meets quality standards before you commit, saving time in code review.
 
 ### Go Code Style
 
