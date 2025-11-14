@@ -36,10 +36,10 @@ repos:
         args: [--config=.golangci.yml]
 
       # Run go test
-      - id: go-test
+      - id: go-test-pkg
         stages: [pre-commit]
         args: ["-race", "-cover"]
 
       # Run go build
-      - id: go-build
+      - id: go-build-pkg
         stages: [pre-commit]
