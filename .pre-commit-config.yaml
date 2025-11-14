@@ -22,7 +22,20 @@ repos:
       - id: go-fmt
         stages: [pre-commit]
 
+      # Run go vet with vendor mode
+      - id: go-vet-repo-mod
+        stages: [pre-commit]
+
       # Run golangci-lint on the entire repository
       - id: golangci-lint-repo-mod
         stages: [pre-commit]
         args: [--config=.golangci.yml]
+
+      # Run go test with vendor mode
+      - id: go-test-repo-mod
+        stages: [pre-commit]
+        args: ["-race", "-cover"]
+
+      # Run go build with vendor mode
+      - id: go-build-repo-mod
+        stages: [pre-commit]
