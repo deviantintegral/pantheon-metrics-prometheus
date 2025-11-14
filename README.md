@@ -7,6 +7,7 @@ A Go application that fetches Pantheon site metrics using the Terminus CLI and e
 | Workflow | Status |
 |----------|--------|
 | Tests | [![Tests](https://github.com/deviantintegral/pantheon-metrics-prometheus/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/deviantintegral/pantheon-metrics-prometheus/actions/workflows/test.yml) |
+| Release | [![Release](https://github.com/deviantintegral/pantheon-metrics-prometheus/actions/workflows/release.yml/badge.svg)](https://github.com/deviantintegral/pantheon-metrics-prometheus/actions/workflows/release.yml) |
 
 ## Features
 
@@ -26,6 +27,24 @@ A Go application that fetches Pantheon site metrics using the Terminus CLI and e
 - One or more Pantheon machine tokens
 
 ## Installation
+
+### Option 1: Download Pre-built Binary (Recommended)
+
+Download the latest release for your platform from the [releases page](https://github.com/deviantintegral/pantheon-metrics-prometheus/releases/latest).
+
+Available for:
+- Linux (amd64, arm64, arm, 386)
+- macOS (amd64, arm64)
+- Windows (amd64, 386)
+
+```bash
+# Example: Download and extract for Linux amd64
+wget https://github.com/deviantintegral/pantheon-metrics-prometheus/releases/latest/download/pantheon-metrics-prometheus_VERSION_linux_x86_64.tar.gz
+tar -xzf pantheon-metrics-prometheus_VERSION_linux_x86_64.tar.gz
+chmod +x pantheon-metrics-exporter
+```
+
+### Option 2: Build from Source
 
 ```bash
 go build -o pantheon-metrics-exporter
