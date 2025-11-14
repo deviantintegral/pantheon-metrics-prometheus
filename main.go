@@ -209,7 +209,11 @@ func main() {
 	environment := flag.String("env", "live", "Pantheon environment (default: live)")
 	port := flag.String("port", "8080", "HTTP server port (default: 8080)")
 	refreshInterval := flag.Int("refreshInterval", 60, "Refresh interval in minutes (default: 60)")
+	debug := flag.Bool("debug", false, "Enable debug logging of terminus commands and responses to stderr")
 	flag.Parse()
+
+	// Set global debug mode
+	SetDebugMode(*debug)
 
 	// Read machine tokens from environment variable
 	tokensEnv := os.Getenv("PANTHEON_MACHINE_TOKENS")
