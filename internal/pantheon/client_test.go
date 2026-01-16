@@ -402,3 +402,17 @@ func TestGetAccountIDEmpty(t *testing.T) {
 		t.Errorf("Expected empty account ID, got %s", accountID)
 	}
 }
+
+func TestClientInvalidateSession(t *testing.T) {
+	// Test that InvalidateSession does not panic and works correctly
+	client := NewClient()
+
+	// Should not panic even with non-existent token
+	client.InvalidateSession("non-existent-token")
+
+	// Should not panic with empty token
+	client.InvalidateSession("")
+
+	// Should work with a normal token
+	client.InvalidateSession("some-machine-token")
+}
