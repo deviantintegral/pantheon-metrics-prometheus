@@ -30,8 +30,9 @@ func authenticateWithToken(token string) error {
 	return nil
 }
 
-// getAccountID returns an account identifier from a machine token (last 8 chars)
-// Deprecated: Use getAuthenticatedAccountEmail() after authentication instead
+// getAccountID returns an account identifier from a machine token (last 8 chars).
+//
+// Deprecated: Use getAuthenticatedAccountEmail() after authentication instead.
 func getAccountID(token string) string {
 	// Return last 8 characters of token for identification
 	if len(token) >= 8 {
