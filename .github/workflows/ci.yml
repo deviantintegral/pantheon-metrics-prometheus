@@ -75,16 +75,16 @@ jobs:
         include:
           - platform: linux
             targets: |
-              GOOS=linux GOARCH=amd64 go build -o bin/terminus-linux-amd64 ./cmd/terminus
-              GOOS=linux GOARCH=arm64 go build -o bin/terminus-linux-arm64 ./cmd/terminus
+              GOOS=linux GOARCH=amd64 go build -o bin/pantheon-metrics-prometheus-linux-amd64 .
+              GOOS=linux GOARCH=arm64 go build -o bin/pantheon-metrics-prometheus-linux-arm64 .
           - platform: macos
             targets: |
-              GOOS=darwin GOARCH=amd64 go build -o bin/terminus-darwin-amd64 ./cmd/terminus
-              GOOS=darwin GOARCH=arm64 go build -o bin/terminus-darwin-arm64 ./cmd/terminus
+              GOOS=darwin GOARCH=amd64 go build -o bin/pantheon-metrics-prometheus-darwin-amd64 .
+              GOOS=darwin GOARCH=arm64 go build -o bin/pantheon-metrics-prometheus-darwin-arm64 .
           - platform: windows
             targets: |
-              GOOS=windows GOARCH=amd64 go build -o bin/terminus-windows-amd64.exe ./cmd/terminus
-              GOOS=windows GOARCH=arm64 go build -o bin/terminus-windows-arm64.exe ./cmd/terminus
+              GOOS=windows GOARCH=amd64 go build -o bin/pantheon-metrics-prometheus-windows-amd64.exe .
+              GOOS=windows GOARCH=arm64 go build -o bin/pantheon-metrics-prometheus-windows-arm64.exe .
     steps:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
