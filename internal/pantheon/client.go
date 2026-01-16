@@ -1,6 +1,5 @@
-// Package main provides a Prometheus exporter for Pantheon site metrics.
-// It fetches metrics using the Terminus CLI and exposes them via HTTP.
-package main
+// Package pantheon provides types and client functions for interacting with Pantheon via Terminus CLI.
+package pantheon
 
 import (
 	"encoding/json"
@@ -20,8 +19,8 @@ func executeTerminusCommand(args ...string) ([]byte, error) {
 	return output, nil
 }
 
-// authenticateWithToken authenticates with Terminus using a machine token
-func authenticateWithToken(token string) error {
+// AuthenticateWithToken authenticates with Terminus using a machine token
+func AuthenticateWithToken(token string) error {
 	log.Printf("Authenticating with machine token...")
 	_, err := executeTerminusCommand("auth:login", "--machine-token="+token)
 	if err != nil {
@@ -30,8 +29,9 @@ func authenticateWithToken(token string) error {
 	return nil
 }
 
-// getAccountID returns an account identifier from a machine token (last 8 chars)
-func getAccountID(token string) string {
+// GetAccountID returns an account identifier from a machine token (last 8 chars).
+// This is used as a fallback when GetAuthenticatedAccountEmail() fails.
+func GetAccountID(token string) string {
 	// Return last 8 characters of token for identification
 	if len(token) >= 8 {
 		return token[len(token)-8:]
@@ -39,13 +39,8 @@ func getAccountID(token string) string {
 	return token
 }
 
-// WhoAmIResponse represents the response from terminus auth:whoami
-type WhoAmIResponse struct {
-	Email string `json:"email"`
-}
-
-// getAuthenticatedAccountEmail returns the email of the currently authenticated user
-func getAuthenticatedAccountEmail() (string, error) {
+// GetAuthenticatedAccountEmail returns the email of the currently authenticated user
+func GetAuthenticatedAccountEmail() (string, error) {
 	output, err := executeTerminusCommand("auth:whoami", "--format=json")
 	if err != nil {
 		return "", fmt.Errorf("failed to get authenticated user info: %w", err)
@@ -63,8 +58,8 @@ func getAuthenticatedAccountEmail() (string, error) {
 	return whoami.Email, nil
 }
 
-// fetchSiteInfo fetches site information from Terminus
-func fetchSiteInfo(siteName string) (*SiteInfo, error) {
+// FetchSiteInfo fetches site information from Terminus
+func FetchSiteInfo(siteName string) (*SiteInfo, error) {
 	log.Printf("Fetching site info for %s...", siteName)
 	output, err := executeTerminusCommand("site:info", siteName, "--format=json")
 	if err != nil {
@@ -74,8 +69,8 @@ func fetchSiteInfo(siteName string) (*SiteInfo, error) {
 	return parseSiteInfo(output)
 }
 
-// fetchMetricsData fetches metrics data for a site from Terminus
-func fetchMetricsData(siteName, environment string) (map[string]MetricData, error) {
+// FetchMetricsData fetches metrics data for a site from Terminus
+func FetchMetricsData(siteName, environment string) (map[string]MetricData, error) {
 	log.Printf("Fetching metrics for %s.%s...", siteName, environment)
 	output, err := executeTerminusCommand("env:metrics", fmt.Sprintf("%s.%s", siteName, environment), "--format=json")
 	if err != nil {
@@ -85,8 +80,8 @@ func fetchMetricsData(siteName, environment string) (map[string]MetricData, erro
 	return parseMetricsData(output)
 }
 
-// fetchAllSites fetches the list of all sites from Terminus
-func fetchAllSites() (map[string]SiteListEntry, error) {
+// FetchAllSites fetches the list of all sites from Terminus
+func FetchAllSites() (map[string]SiteListEntry, error) {
 	log.Printf("Fetching all sites from Terminus...")
 	output, err := executeTerminusCommand("site:list", "--format=json")
 	if err != nil {
@@ -96,10 +91,10 @@ func fetchAllSites() (map[string]SiteListEntry, error) {
 	return parseSiteList(output)
 }
 
-// fetchSiteMetrics fetches both site info and metrics data
-func fetchSiteMetrics(siteName, environment string) (*SiteMetrics, error) {
+// FetchSiteMetrics fetches both site info and metrics data
+func FetchSiteMetrics(siteName, environment string) (*SiteMetrics, error) {
 	// Fetch metrics data
-	metricsData, err := fetchMetricsData(siteName, environment)
+	metricsData, err := FetchMetricsData(siteName, environment)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch metrics: %w", err)
 	}
@@ -144,8 +139,8 @@ func parseSiteList(data []byte) (map[string]SiteListEntry, error) {
 	return siteList, nil
 }
 
-// loadMetricsData loads metrics data from a JSON file (used for testing)
-func loadMetricsData(filename string) (map[string]MetricData, error) {
+// LoadMetricsData loads metrics data from a JSON file (used for testing)
+func LoadMetricsData(filename string) (map[string]MetricData, error) {
 	data, err := os.ReadFile(filename) // #nosec G304 - test helper function, filename from test data
 	if err != nil {
 		return nil, fmt.Errorf("error reading file: %w", err)
@@ -154,8 +149,8 @@ func loadMetricsData(filename string) (map[string]MetricData, error) {
 	return parseMetricsData(data)
 }
 
-// loadSiteConfig loads site config from a JSON file (legacy format, used for testing)
-func loadSiteConfig(filename string) (*SiteConfig, error) {
+// LoadSiteConfig loads site config from a JSON file (legacy format, used for testing)
+func LoadSiteConfig(filename string) (*SiteConfig, error) {
 	data, err := os.ReadFile(filename) // #nosec G304 - test helper function, filename from test data
 	if err != nil {
 		return nil, fmt.Errorf("error reading file: %w", err)
@@ -169,8 +164,8 @@ func loadSiteConfig(filename string) (*SiteConfig, error) {
 	return &config, nil
 }
 
-// loadSiteInfo loads site info from a JSON file (used for testing)
-func loadSiteInfo(filename string) (*SiteInfo, error) {
+// LoadSiteInfo loads site info from a JSON file (used for testing)
+func LoadSiteInfo(filename string) (*SiteInfo, error) {
 	data, err := os.ReadFile(filename) // #nosec G304 - test helper function, filename from test data
 	if err != nil {
 		return nil, fmt.Errorf("error reading file: %w", err)
@@ -179,8 +174,8 @@ func loadSiteInfo(filename string) (*SiteInfo, error) {
 	return parseSiteInfo(data)
 }
 
-// loadSiteList loads site list from a JSON file (used for testing)
-func loadSiteList(filename string) (map[string]SiteListEntry, error) {
+// LoadSiteList loads site list from a JSON file (used for testing)
+func LoadSiteList(filename string) (map[string]SiteListEntry, error) {
 	data, err := os.ReadFile(filename) // #nosec G304 - test helper function, filename from test data
 	if err != nil {
 		return nil, fmt.Errorf("error reading file: %w", err)

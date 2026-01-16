@@ -1,0 +1,85 @@
+// Package main is the entry point for the Pantheon metrics exporter.
+package main
+
+import (
+	"flag"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/app"
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/collector"
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+func main() {
+	// Parse command-line flags
+	environment := flag.String("env", "live", "Pantheon environment (default: live)")
+	port := flag.String("port", "8080", "HTTP server port (default: 8080)")
+	refreshInterval := flag.Int("refreshInterval", 60, "Refresh interval in minutes (default: 60)")
+	flag.Parse()
+
+	// Read machine tokens from environment variable
+	tokensEnv := os.Getenv("PANTHEON_MACHINE_TOKENS")
+	if tokensEnv == "" {
+		log.Fatal("PANTHEON_MACHINE_TOKENS environment variable is not set")
+	}
+
+	// Split tokens by space
+	tokens := strings.Fields(tokensEnv)
+	if len(tokens) == 0 {
+		log.Fatal("No tokens found in PANTHEON_MACHINE_TOKENS")
+	}
+
+	log.Printf("Found %d Pantheon account(s) to process", len(tokens))
+
+	// Collect site lists first (fast - no metrics)
+	log.Printf("Loading site lists...")
+	allSites := app.CollectAllSiteLists(tokens)
+
+	// Create collector with sites (empty metrics initially)
+	pantheonCollector := collector.NewPantheonCollector(allSites)
+
+	// Register the collector
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(pantheonCollector)
+
+	// Setup HTTP handlers
+	app.SetupHTTPHandlers(registry, *environment, tokens, pantheonCollector)
+
+	// Start refresh manager
+	refreshIntervalDuration := time.Duration(*refreshInterval) * time.Minute
+	refreshManager := app.StartRefreshManager(tokens, *environment, refreshIntervalDuration, pantheonCollector)
+	refreshManager.InitializeDiscoveredSites()
+	log.Printf("Refresh manager started (interval: %d minutes)", *refreshInterval)
+
+	// Collect initial metrics in background goroutine
+	go func() {
+		log.Printf("Starting initial metrics collection in background...")
+		allSiteMetrics := app.CollectAllMetrics(tokens, *environment)
+
+		if len(allSiteMetrics) > 0 {
+			log.Printf("Initial metrics collection complete: %d sites with metrics", len(allSiteMetrics))
+			pantheonCollector.UpdateSites(allSiteMetrics)
+		}
+	}()
+
+	// Start server with timeouts
+	serverAddr := ":" + *port
+	log.Printf("Starting Pantheon metrics exporter on %s", serverAddr)
+	log.Printf("Metrics available at http://localhost%s/metrics", serverAddr)
+	log.Printf("Server is ready to serve requests (metrics collection running in background)")
+
+	server := &http.Server{
+		Addr:         serverAddr,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatalf("Error starting server: %v", err)
+	}
+}

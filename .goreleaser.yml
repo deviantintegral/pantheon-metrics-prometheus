@@ -11,7 +11,7 @@ before:
 
 builds:
   - id: default
-    main: .
+    main: ./cmd/pantheon-metrics-exporter
     binary: pantheon-metrics-exporter
     env:
       - CGO_ENABLED=0
@@ -31,7 +31,7 @@ builds:
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
   - id: windows
-    main: .
+    main: ./cmd/pantheon-metrics-exporter
     binary: pantheon-metrics-exporter
     env:
       - CGO_ENABLED=0

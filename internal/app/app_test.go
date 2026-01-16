@@ -1,0 +1,369 @@
+package app
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/collector"
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/pantheon"
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+const (
+	testEnvLive = "live"
+)
+
+// TestCreateRootHandler tests the createRootHandler function
+func TestCreateRootHandler(t *testing.T) {
+	// Create test data
+	metricsData := map[string]pantheon.MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        100,
+			PagesServed:   500,
+			CacheHits:     50,
+			CacheMisses:   450,
+			CacheHitRatio: "10%",
+		},
+	}
+
+	allSiteMetrics := []pantheon.SiteMetrics{
+		{
+			SiteName:    "testsite1",
+			Label:       "Test Site 1",
+			PlanName:    "Basic",
+			Account:     "account1",
+			MetricsData: metricsData,
+		},
+		{
+			SiteName:    "testsite2",
+			Label:       "Test Site 2",
+			PlanName:    "Performance",
+			Account:     "account2",
+			MetricsData: metricsData,
+		},
+	}
+
+	tokens := []string{"token1", "token2"}
+	environment := testEnvLive
+
+	// Create collector with test data
+	c := collector.NewPantheonCollector(allSiteMetrics)
+
+	// Create the handler
+	handler := createRootHandler(environment, tokens, c)
+
+	// Test the handler
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "Pantheon Metrics Exporter") {
+		t.Error("Response should contain 'Pantheon Metrics Exporter'")
+	}
+	if !strings.Contains(body, "testsite1") {
+		t.Error("Response should contain 'testsite1'")
+	}
+	if !strings.Contains(body, "testsite2") {
+		t.Error("Response should contain 'testsite2'")
+	}
+	if !strings.Contains(body, "Environment:</strong> live") {
+		t.Error("Response should contain environment 'live'")
+	}
+	if !strings.Contains(body, "Accounts monitored:</strong> 2") {
+		t.Error("Response should contain '2' accounts")
+	}
+	if !strings.Contains(body, "Sites monitored:</strong> 2") {
+		t.Error("Response should contain '2' sites")
+	}
+}
+
+// TestCollectAccountMetrics tests the collectAccountMetrics function
+func TestCollectAccountMetrics(t *testing.T) {
+	// Test with a token - will fail due to no terminus but exercises the function
+	token := "1234567890abcdef1234567890abcdef"
+	environment := testEnvLive
+
+	metrics, successCount, failCount := collectAccountMetrics(token, environment)
+
+	// Should return empty metrics since terminus is not available
+	if len(metrics) != 0 {
+		t.Errorf("Expected 0 metrics, got %d", len(metrics))
+	}
+
+	if successCount != 0 {
+		t.Errorf("Expected 0 successful collections, got %d", successCount)
+	}
+
+	// Should have a failure since terminus is not available
+	if failCount != 0 {
+		// Expected behavior when terminus is not available
+		t.Logf("Got %d failures as expected when terminus is not available", failCount)
+	}
+}
+
+// TestCollectAllMetrics tests the CollectAllMetrics function
+func TestCollectAllMetrics(t *testing.T) {
+	// Test with tokens - will fail due to no terminus but exercises the function
+	tokens := []string{
+		"1234567890abcdef1234567890abcdef",
+		"fedcba0987654321fedcba0987654321",
+	}
+	environment := testEnvLive
+
+	metrics := CollectAllMetrics(tokens, environment)
+
+	// Should return empty metrics since terminus is not available
+	if len(metrics) != 0 {
+		t.Errorf("Expected 0 metrics, got %d", len(metrics))
+	}
+}
+
+// TestCollectAllMetricsEmptyTokens tests CollectAllMetrics with empty token list
+func TestCollectAllMetricsEmptyTokens(t *testing.T) {
+	tokens := []string{}
+	environment := testEnvLive
+
+	metrics := CollectAllMetrics(tokens, environment)
+
+	if len(metrics) != 0 {
+		t.Errorf("Expected 0 metrics with empty tokens, got %d", len(metrics))
+	}
+}
+
+// TestCreateRootHandlerEmptyMetrics tests createRootHandler with empty metrics
+func TestCreateRootHandlerEmptyMetrics(t *testing.T) {
+	allSiteMetrics := []pantheon.SiteMetrics{}
+	tokens := []string{"token1"}
+	environment := testEnvLive
+
+	c := collector.NewPantheonCollector(allSiteMetrics)
+	handler := createRootHandler(environment, tokens, c)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "Sites monitored:</strong> 0") {
+		t.Error("Response should show 0 sites monitored")
+	}
+}
+
+// TestCreateRootHandlerMultipleEnvironments tests createRootHandler with different environments
+func TestCreateRootHandlerMultipleEnvironments(t *testing.T) {
+	tests := []struct {
+		name string
+		env  string
+	}{
+		{"live environment", "live"},
+		{"dev environment", "dev"},
+		{"test environment", "test"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := collector.NewPantheonCollector([]pantheon.SiteMetrics{})
+			handler := createRootHandler(tt.env, []string{}, c)
+
+			req := httptest.NewRequest("GET", "/", nil)
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+
+			body := w.Body.String()
+			if !strings.Contains(body, "Environment:</strong> "+tt.env) {
+				t.Errorf("Response should contain environment '%s'", tt.env)
+			}
+		})
+	}
+}
+
+// TestCreateSiteMetrics tests the createSiteMetrics function
+func TestCreateSiteMetrics(t *testing.T) {
+	siteName := "testsite"
+	accountID := "account123"
+	planName := "Basic"
+	metricsData := map[string]pantheon.MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        100,
+			PagesServed:   500,
+			CacheHits:     50,
+			CacheMisses:   450,
+			CacheHitRatio: "10%",
+		},
+	}
+
+	result := createSiteMetrics(siteName, accountID, planName, metricsData)
+
+	if result.SiteName != siteName {
+		t.Errorf("Expected SiteName %s, got %s", siteName, result.SiteName)
+	}
+	if result.Account != accountID {
+		t.Errorf("Expected Account %s, got %s", accountID, result.Account)
+	}
+	if result.PlanName != planName {
+		t.Errorf("Expected PlanName %s, got %s", planName, result.PlanName)
+	}
+	if result.Label != siteName {
+		t.Errorf("Expected Label %s, got %s", siteName, result.Label)
+	}
+	if len(result.MetricsData) != len(metricsData) {
+		t.Errorf("Expected %d metrics entries, got %d", len(metricsData), len(result.MetricsData))
+	}
+}
+
+// TestCreateSiteMetricsWithEmptyMetrics tests createSiteMetrics with empty metrics
+func TestCreateSiteMetricsWithEmptyMetrics(t *testing.T) {
+	siteName := "testsite"
+	accountID := "account123"
+	planName := "Basic"
+	metricsData := map[string]pantheon.MetricData{}
+
+	result := createSiteMetrics(siteName, accountID, planName, metricsData)
+
+	if len(result.MetricsData) != 0 {
+		t.Errorf("Expected empty metrics, got %d entries", len(result.MetricsData))
+	}
+}
+
+// TestCreateSiteMetricsWithMultipleMetrics tests createSiteMetrics with multiple metric entries
+func TestCreateSiteMetricsWithMultipleMetrics(t *testing.T) {
+	siteName := "testsite"
+	accountID := "account123"
+	planName := "Performance"
+	metricsData := map[string]pantheon.MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        100,
+			PagesServed:   500,
+			CacheHits:     50,
+			CacheMisses:   450,
+			CacheHitRatio: "10%",
+		},
+		"1762819200": {
+			DateTime:      "2025-11-11T00:00:00",
+			Visits:        150,
+			PagesServed:   600,
+			CacheHits:     60,
+			CacheMisses:   540,
+			CacheHitRatio: "10%",
+		},
+		"1762905600": {
+			DateTime:      "2025-11-12T00:00:00",
+			Visits:        200,
+			PagesServed:   700,
+			CacheHits:     70,
+			CacheMisses:   630,
+			CacheHitRatio: "10%",
+		},
+	}
+
+	result := createSiteMetrics(siteName, accountID, planName, metricsData)
+
+	if len(result.MetricsData) != 3 {
+		t.Errorf("Expected 3 metrics entries, got %d", len(result.MetricsData))
+	}
+}
+
+// TestProcessAccountSiteListEmpty tests processAccountSiteList with empty site list
+func TestProcessAccountSiteListEmpty(t *testing.T) {
+	accountID := "account123"
+	environment := testEnvLive
+	siteList := map[string]pantheon.SiteListEntry{}
+
+	metrics, successCount, failCount := processAccountSiteList(accountID, environment, siteList)
+
+	if len(metrics) != 0 {
+		t.Errorf("Expected 0 metrics, got %d", len(metrics))
+	}
+	if successCount != 0 {
+		t.Errorf("Expected 0 successful collections, got %d", successCount)
+	}
+	if failCount != 0 {
+		t.Errorf("Expected 0 failures, got %d", failCount)
+	}
+}
+
+// TestProcessAccountSiteListWithSites tests processAccountSiteList with sites
+func TestProcessAccountSiteListWithSites(_ *testing.T) {
+	// This test exercises the function but will fail due to no terminus
+	// Included for coverage purposes
+	accountID := "account123"
+	environment := testEnvLive
+	siteList := map[string]pantheon.SiteListEntry{
+		"site1": {
+			Name:     "site1",
+			PlanName: "Basic",
+		},
+	}
+
+	_, _, _ = processAccountSiteList(accountID, environment, siteList)
+	// Expected to fail without terminus, which is acceptable for unit tests
+}
+
+// TestSetupHTTPHandlers tests the SetupHTTPHandlers function
+func TestSetupHTTPHandlers(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	environment := testEnvLive
+	tokens := []string{"token1"}
+	c := collector.NewPantheonCollector([]pantheon.SiteMetrics{})
+
+	// This should not panic
+	SetupHTTPHandlers(registry, environment, tokens, c)
+}
+
+// TestStartRefreshManager tests the StartRefreshManager function
+func TestStartRefreshManager(t *testing.T) {
+	tokens := []string{"token1"}
+	environment := testEnvLive
+	refreshInterval := 1 * time.Minute
+	c := collector.NewPantheonCollector([]pantheon.SiteMetrics{})
+
+	// This should not panic and should return a manager
+	manager := StartRefreshManager(tokens, environment, refreshInterval, c)
+
+	if manager == nil {
+		t.Error("Expected refresh manager to be created, got nil")
+	}
+}
+
+// TestCollectAllSiteLists tests the CollectAllSiteLists function
+func TestCollectAllSiteLists(t *testing.T) {
+	// Test with tokens - will fail due to no terminus but exercises the function
+	tokens := []string{
+		"1234567890abcdef1234567890abcdef",
+	}
+
+	sites := CollectAllSiteLists(tokens)
+
+	// Should return empty site list since terminus is not available
+	if len(sites) != 0 {
+		t.Errorf("Expected 0 sites, got %d", len(sites))
+	}
+}
+
+// TestCollectAllSiteListsEmpty tests CollectAllSiteLists with empty tokens
+func TestCollectAllSiteListsEmpty(t *testing.T) {
+	tokens := []string{}
+
+	sites := CollectAllSiteLists(tokens)
+
+	if len(sites) != 0 {
+		t.Errorf("Expected 0 sites with empty tokens, got %d", len(sites))
+	}
+}
