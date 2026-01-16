@@ -23,4 +23,4 @@ jobs:
         with:
           # This should match the configuration of your conventional commits
           release-type: go
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN}}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
