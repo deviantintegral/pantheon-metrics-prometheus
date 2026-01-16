@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/app"
 	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/collector"
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/pantheon"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -35,9 +37,13 @@ func main() {
 
 	log.Printf("Found %d Pantheon account(s) to process", len(tokens))
 
+	// Create the Pantheon API client
+	client := pantheon.NewClient()
+	ctx := context.Background()
+
 	// Collect site lists first (fast - no metrics)
 	log.Printf("Loading site lists...")
-	allSites := app.CollectAllSiteLists(tokens)
+	allSites := app.CollectAllSiteLists(ctx, client, tokens)
 
 	// Create collector with sites (empty metrics initially)
 	pantheonCollector := collector.NewPantheonCollector(allSites)
@@ -51,14 +57,14 @@ func main() {
 
 	// Start refresh manager
 	refreshIntervalDuration := time.Duration(*refreshInterval) * time.Minute
-	refreshManager := app.StartRefreshManager(tokens, *environment, refreshIntervalDuration, pantheonCollector)
+	refreshManager := app.StartRefreshManager(client, tokens, *environment, refreshIntervalDuration, pantheonCollector)
 	refreshManager.InitializeDiscoveredSites()
 	log.Printf("Refresh manager started (interval: %d minutes)", *refreshInterval)
 
 	// Collect initial metrics in background goroutine
 	go func() {
 		log.Printf("Starting initial metrics collection in background...")
-		allSiteMetrics := app.CollectAllMetrics(tokens, *environment)
+		allSiteMetrics := app.CollectAllMetrics(ctx, client, tokens, *environment)
 
 		if len(allSiteMetrics) > 0 {
 			log.Printf("Initial metrics collection complete: %d sites with metrics", len(allSiteMetrics))

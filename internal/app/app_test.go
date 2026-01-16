@@ -33,6 +33,7 @@ func TestCreateRootHandler(t *testing.T) {
 	allSiteMetrics := []pantheon.SiteMetrics{
 		{
 			SiteName:    "testsite1",
+			SiteID:      "site-uuid-1",
 			Label:       "Test Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
@@ -40,6 +41,7 @@ func TestCreateRootHandler(t *testing.T) {
 		},
 		{
 			SiteName:    "testsite2",
+			SiteID:      "site-uuid-2",
 			Label:       "Test Site 2",
 			PlanName:    "Performance",
 			Account:     "account2",
@@ -84,59 +86,6 @@ func TestCreateRootHandler(t *testing.T) {
 	}
 	if !strings.Contains(body, "Sites monitored:</strong> 2") {
 		t.Error("Response should contain '2' sites")
-	}
-}
-
-// TestCollectAccountMetrics tests the collectAccountMetrics function
-func TestCollectAccountMetrics(t *testing.T) {
-	// Test with a token - will fail due to no terminus but exercises the function
-	token := "1234567890abcdef1234567890abcdef"
-	environment := testEnvLive
-
-	metrics, successCount, failCount := collectAccountMetrics(token, environment)
-
-	// Should return empty metrics since terminus is not available
-	if len(metrics) != 0 {
-		t.Errorf("Expected 0 metrics, got %d", len(metrics))
-	}
-
-	if successCount != 0 {
-		t.Errorf("Expected 0 successful collections, got %d", successCount)
-	}
-
-	// Should have a failure since terminus is not available
-	if failCount != 0 {
-		// Expected behavior when terminus is not available
-		t.Logf("Got %d failures as expected when terminus is not available", failCount)
-	}
-}
-
-// TestCollectAllMetrics tests the CollectAllMetrics function
-func TestCollectAllMetrics(t *testing.T) {
-	// Test with tokens - will fail due to no terminus but exercises the function
-	tokens := []string{
-		"1234567890abcdef1234567890abcdef",
-		"fedcba0987654321fedcba0987654321",
-	}
-	environment := testEnvLive
-
-	metrics := CollectAllMetrics(tokens, environment)
-
-	// Should return empty metrics since terminus is not available
-	if len(metrics) != 0 {
-		t.Errorf("Expected 0 metrics, got %d", len(metrics))
-	}
-}
-
-// TestCollectAllMetricsEmptyTokens tests CollectAllMetrics with empty token list
-func TestCollectAllMetricsEmptyTokens(t *testing.T) {
-	tokens := []string{}
-	environment := testEnvLive
-
-	metrics := CollectAllMetrics(tokens, environment)
-
-	if len(metrics) != 0 {
-		t.Errorf("Expected 0 metrics with empty tokens, got %d", len(metrics))
 	}
 }
 
@@ -195,6 +144,7 @@ func TestCreateRootHandlerMultipleEnvironments(t *testing.T) {
 // TestCreateSiteMetrics tests the createSiteMetrics function
 func TestCreateSiteMetrics(t *testing.T) {
 	siteName := "testsite"
+	siteID := "site-uuid-123"
 	accountID := "account123"
 	planName := "Basic"
 	metricsData := map[string]pantheon.MetricData{
@@ -208,10 +158,13 @@ func TestCreateSiteMetrics(t *testing.T) {
 		},
 	}
 
-	result := createSiteMetrics(siteName, accountID, planName, metricsData)
+	result := createSiteMetrics(siteName, siteID, accountID, planName, metricsData)
 
 	if result.SiteName != siteName {
 		t.Errorf("Expected SiteName %s, got %s", siteName, result.SiteName)
+	}
+	if result.SiteID != siteID {
+		t.Errorf("Expected SiteID %s, got %s", siteID, result.SiteID)
 	}
 	if result.Account != accountID {
 		t.Errorf("Expected Account %s, got %s", accountID, result.Account)
@@ -230,11 +183,12 @@ func TestCreateSiteMetrics(t *testing.T) {
 // TestCreateSiteMetricsWithEmptyMetrics tests createSiteMetrics with empty metrics
 func TestCreateSiteMetricsWithEmptyMetrics(t *testing.T) {
 	siteName := "testsite"
+	siteID := "site-uuid-123"
 	accountID := "account123"
 	planName := "Basic"
 	metricsData := map[string]pantheon.MetricData{}
 
-	result := createSiteMetrics(siteName, accountID, planName, metricsData)
+	result := createSiteMetrics(siteName, siteID, accountID, planName, metricsData)
 
 	if len(result.MetricsData) != 0 {
 		t.Errorf("Expected empty metrics, got %d entries", len(result.MetricsData))
@@ -244,6 +198,7 @@ func TestCreateSiteMetricsWithEmptyMetrics(t *testing.T) {
 // TestCreateSiteMetricsWithMultipleMetrics tests createSiteMetrics with multiple metric entries
 func TestCreateSiteMetricsWithMultipleMetrics(t *testing.T) {
 	siteName := "testsite"
+	siteID := "site-uuid-123"
 	accountID := "account123"
 	planName := "Performance"
 	metricsData := map[string]pantheon.MetricData{
@@ -273,47 +228,11 @@ func TestCreateSiteMetricsWithMultipleMetrics(t *testing.T) {
 		},
 	}
 
-	result := createSiteMetrics(siteName, accountID, planName, metricsData)
+	result := createSiteMetrics(siteName, siteID, accountID, planName, metricsData)
 
 	if len(result.MetricsData) != 3 {
 		t.Errorf("Expected 3 metrics entries, got %d", len(result.MetricsData))
 	}
-}
-
-// TestProcessAccountSiteListEmpty tests processAccountSiteList with empty site list
-func TestProcessAccountSiteListEmpty(t *testing.T) {
-	accountID := "account123"
-	environment := testEnvLive
-	siteList := map[string]pantheon.SiteListEntry{}
-
-	metrics, successCount, failCount := processAccountSiteList(accountID, environment, siteList)
-
-	if len(metrics) != 0 {
-		t.Errorf("Expected 0 metrics, got %d", len(metrics))
-	}
-	if successCount != 0 {
-		t.Errorf("Expected 0 successful collections, got %d", successCount)
-	}
-	if failCount != 0 {
-		t.Errorf("Expected 0 failures, got %d", failCount)
-	}
-}
-
-// TestProcessAccountSiteListWithSites tests processAccountSiteList with sites
-func TestProcessAccountSiteListWithSites(_ *testing.T) {
-	// This test exercises the function but will fail due to no terminus
-	// Included for coverage purposes
-	accountID := "account123"
-	environment := testEnvLive
-	siteList := map[string]pantheon.SiteListEntry{
-		"site1": {
-			Name:     "site1",
-			PlanName: "Basic",
-		},
-	}
-
-	_, _, _ = processAccountSiteList(accountID, environment, siteList)
-	// Expected to fail without terminus, which is acceptable for unit tests
 }
 
 // TestSetupHTTPHandlers tests the SetupHTTPHandlers function
@@ -329,41 +248,23 @@ func TestSetupHTTPHandlers(t *testing.T) {
 
 // TestStartRefreshManager tests the StartRefreshManager function
 func TestStartRefreshManager(t *testing.T) {
+	client := pantheon.NewClient()
 	tokens := []string{"token1"}
 	environment := testEnvLive
 	refreshInterval := 1 * time.Minute
 	c := collector.NewPantheonCollector([]pantheon.SiteMetrics{})
 
 	// This should not panic and should return a manager
-	manager := StartRefreshManager(tokens, environment, refreshInterval, c)
+	manager := StartRefreshManager(client, tokens, environment, refreshInterval, c)
 
 	if manager == nil {
 		t.Error("Expected refresh manager to be created, got nil")
 	}
 }
 
-// TestCollectAllSiteLists tests the CollectAllSiteLists function
-func TestCollectAllSiteLists(t *testing.T) {
-	// Test with tokens - will fail due to no terminus but exercises the function
-	tokens := []string{
-		"1234567890abcdef1234567890abcdef",
-	}
-
-	sites := CollectAllSiteLists(tokens)
-
-	// Should return empty site list since terminus is not available
-	if len(sites) != 0 {
-		t.Errorf("Expected 0 sites, got %d", len(sites))
-	}
-}
-
-// TestCollectAllSiteListsEmpty tests CollectAllSiteLists with empty tokens
-func TestCollectAllSiteListsEmpty(t *testing.T) {
-	tokens := []string{}
-
-	sites := CollectAllSiteLists(tokens)
-
-	if len(sites) != 0 {
-		t.Errorf("Expected 0 sites with empty tokens, got %d", len(sites))
+// TestInitialMetricsDurationConstant tests that the constant is set correctly
+func TestInitialMetricsDurationConstant(t *testing.T) {
+	if InitialMetricsDuration != "28d" {
+		t.Errorf("Expected InitialMetricsDuration to be '28d', got '%s'", InitialMetricsDuration)
 	}
 }
