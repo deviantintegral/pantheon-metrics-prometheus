@@ -10,7 +10,7 @@ before:
     - go mod verify
 
 builds:
-  - id: pantheon-metrics-exporter
+  - id: default
     main: .
     binary: pantheon-metrics-exporter
     env:
@@ -19,16 +19,27 @@ builds:
       - freebsd
       - linux
       - darwin
-      - windows
     goarch:
       - amd64
       - arm64
       - arm
     goarm:
       - "7"
-    ignore:
-      - goos: windows
-        goarch: arm
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+  - id: windows
+    main: .
+    binary: pantheon-metrics-exporter
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - arm64
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
@@ -37,6 +48,8 @@ builds:
 
 archives:
   - id: default
+    builds:
+      - default
     formats: [tar.gz]
     name_template: >-
       {{ .ProjectName }}_
@@ -50,10 +63,9 @@ archives:
       - README.md
       - LICENSE*
       - CONTRIBUTING.md
-    filter:
-      exclude:
-        - goos: windows
   - id: windows
+    builds:
+      - windows
     formats: [zip]
     name_template: >-
       {{ .ProjectName }}_
@@ -67,9 +79,6 @@ archives:
       - README.md
       - LICENSE*
       - CONTRIBUTING.md
-    filter:
-      include:
-        - goos: windows
 
 checksum:
   name_template: 'checksums.txt'
