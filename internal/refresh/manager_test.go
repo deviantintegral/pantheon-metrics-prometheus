@@ -561,3 +561,167 @@ func TestDurationConstants(t *testing.T) {
 		t.Errorf("Expected InitialMetricsDuration to be '28d', got '%s'", InitialMetricsDuration)
 	}
 }
+
+func TestRefreshSiteMetricsWithTokenMapping(t *testing.T) {
+	client := pantheon.NewClient()
+	tokens := []string{testToken32}
+	environment := testEnvLive
+
+	metricsData := map[string]pantheon.MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        100,
+			PagesServed:   500,
+			CacheHits:     50,
+			CacheMisses:   450,
+			CacheHitRatio: "10%",
+		},
+	}
+
+	sites := []pantheon.SiteMetrics{
+		{
+			SiteName:    "testsite",
+			SiteID:      "site-uuid-test",
+			Label:       "Test Site",
+			PlanName:    "Basic",
+			Account:     "testaccount@example.com",
+			MetricsData: metricsData,
+		},
+	}
+
+	coll := collector.NewPantheonCollector(sites)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll)
+
+	// Pre-populate the account token map
+	manager.accountTokenMap["testaccount@example.com"] = testToken32
+
+	// This should try to refresh metrics (will fail due to invalid token, but exercises the code path)
+	// The test passes if it doesn't panic
+	manager.refreshSiteMetrics("testaccount@example.com", "testsite", "site-uuid-test")
+}
+
+func TestRefreshSiteMetricsFirstTimeFetch(t *testing.T) {
+	client := pantheon.NewClient()
+	tokens := []string{testToken32}
+	environment := testEnvLive
+
+	sites := []pantheon.SiteMetrics{
+		{
+			SiteName:    "newsite",
+			SiteID:      "site-uuid-new",
+			Label:       "New Site",
+			PlanName:    "Basic",
+			Account:     "account@example.com",
+			MetricsData: make(map[string]pantheon.MetricData),
+		},
+	}
+
+	coll := collector.NewPantheonCollector(sites)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll)
+
+	// Pre-populate the account token map
+	manager.accountTokenMap["account@example.com"] = testToken32
+
+	// Don't mark the site as discovered - so it should use InitialMetricsDuration
+	// (The discoveredSites map is empty by default)
+
+	// This should try to refresh metrics with 28d duration
+	// The test passes if it doesn't panic and the site gets marked as discovered
+	manager.refreshSiteMetrics("account@example.com", "newsite", "site-uuid-new")
+
+	// Verify the site is now marked as discovered
+	key := "account@example.com:newsite"
+	if !manager.discoveredSites[key] {
+		t.Error("Expected site to be marked as discovered after first refresh attempt")
+	}
+}
+
+func TestRefreshSiteMetricsSubsequentFetch(t *testing.T) {
+	client := pantheon.NewClient()
+	tokens := []string{testToken32}
+	environment := testEnvLive
+
+	sites := []pantheon.SiteMetrics{
+		{
+			SiteName:    "existingsite",
+			SiteID:      "site-uuid-existing",
+			Label:       "Existing Site",
+			PlanName:    "Basic",
+			Account:     "account@example.com",
+			MetricsData: make(map[string]pantheon.MetricData),
+		},
+	}
+
+	coll := collector.NewPantheonCollector(sites)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll)
+
+	// Pre-populate the account token map
+	manager.accountTokenMap["account@example.com"] = testToken32
+
+	// Mark the site as already discovered
+	key := "account@example.com:existingsite"
+	manager.discoveredSites[key] = true
+
+	// This should try to refresh metrics with 1d duration (RefreshMetricsDuration)
+	// The test passes if it doesn't panic
+	manager.refreshSiteMetrics("account@example.com", "existingsite", "site-uuid-existing")
+
+	// The site should still be marked as discovered
+	if !manager.discoveredSites[key] {
+		t.Error("Expected site to remain marked as discovered")
+	}
+}
+
+func TestManagerAccountTokenMap(t *testing.T) {
+	client := pantheon.NewClient()
+	tokens := []string{"token1", "token2"}
+	environment := testEnvLive
+	sites := []pantheon.SiteMetrics{}
+	coll := collector.NewPantheonCollector(sites)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll)
+
+	// Verify account token map is initialized
+	if manager.accountTokenMap == nil {
+		t.Fatal("Expected accountTokenMap to be initialized")
+	}
+
+	// Verify it's empty initially
+	if len(manager.accountTokenMap) != 0 {
+		t.Errorf("Expected empty accountTokenMap, got %d entries", len(manager.accountTokenMap))
+	}
+
+	// Add some entries
+	manager.accountTokenMap["account1@example.com"] = "token1"
+	manager.accountTokenMap["account2@example.com"] = "token2"
+
+	if len(manager.accountTokenMap) != 2 {
+		t.Errorf("Expected 2 entries in accountTokenMap, got %d", len(manager.accountTokenMap))
+	}
+}
+
+func TestManagerDiscoveredSitesMap(t *testing.T) {
+	client := pantheon.NewClient()
+	tokens := []string{"token1"}
+	environment := testEnvLive
+	sites := []pantheon.SiteMetrics{}
+	coll := collector.NewPantheonCollector(sites)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll)
+
+	// Verify discovered sites map is initialized
+	if manager.discoveredSites == nil {
+		t.Fatal("Expected discoveredSites to be initialized")
+	}
+
+	// Verify it's empty initially
+	if len(manager.discoveredSites) != 0 {
+		t.Errorf("Expected empty discoveredSites, got %d entries", len(manager.discoveredSites))
+	}
+
+	// Add some entries
+	manager.discoveredSites["account1:site1"] = true
+	manager.discoveredSites["account2:site2"] = true
+
+	if len(manager.discoveredSites) != 2 {
+		t.Errorf("Expected 2 entries in discoveredSites, got %d", len(manager.discoveredSites))
+	}
+}
