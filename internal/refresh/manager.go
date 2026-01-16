@@ -2,6 +2,7 @@
 package refresh
 
 import (
+	"context"
 	"log"
 	"math"
 	"sync/atomic"
@@ -11,8 +12,15 @@ import (
 	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/pantheon"
 )
 
+// RefreshMetricsDuration is used for subsequent metrics refresh (1 day to minimize duplicate data).
+const RefreshMetricsDuration = "1d"
+
+// InitialMetricsDuration is used for the first metrics fetch for new sites (28 days of history).
+const InitialMetricsDuration = "28d"
+
 // Manager manages periodic refresh of site lists and metrics
 type Manager struct {
+	client          *pantheon.Client
 	tokens          []string
 	environment     string
 	refreshInterval time.Duration
@@ -24,8 +32,9 @@ type Manager struct {
 }
 
 // NewManager creates a new refresh manager
-func NewManager(tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector) *Manager {
+func NewManager(client *pantheon.Client, tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector) *Manager {
 	return &Manager{
+		client:          client,
 		tokens:          tokens,
 		environment:     environment,
 		refreshInterval: refreshInterval,
@@ -113,6 +122,7 @@ func findRemovedSites(currentSites, newSites map[string]bool) []string {
 
 // refreshAllSiteLists refreshes the site list for all accounts
 func (rm *Manager) refreshAllSiteLists() {
+	ctx := context.Background()
 	var allSiteMetrics []pantheon.SiteMetrics
 
 	// Get current sites to track changes
@@ -125,19 +135,12 @@ func (rm *Manager) refreshAllSiteLists() {
 
 	for _, token := range rm.tokens {
 		// Authenticate with this token
-		if err := pantheon.AuthenticateWithToken(token); err != nil {
+		accountID, err := rm.client.Authenticate(ctx, token)
+		if err != nil {
 			// Use token suffix as fallback for logging if auth fails
-			accountID := pantheon.GetAccountID(token)
+			accountID = pantheon.GetAccountID(token)
 			log.Printf("Warning: Failed to authenticate account %s during refresh: %v", accountID, err)
 			continue
-		}
-
-		// Get the authenticated account email
-		accountID, err := pantheon.GetAuthenticatedAccountEmail()
-		if err != nil {
-			// Use token suffix as fallback if we can't get email
-			accountID = pantheon.GetAccountID(token)
-			log.Printf("Warning: Failed to get account email during refresh, using token suffix %s: %v", accountID, err)
 		}
 
 		// Store the mapping for later use
@@ -146,7 +149,7 @@ func (rm *Manager) refreshAllSiteLists() {
 		log.Printf("Refreshing site list for account %s", accountID)
 
 		// Fetch all sites for this account
-		siteList, err := pantheon.FetchAllSites()
+		siteList, err := rm.client.FetchAllSites(ctx, token)
 		if err != nil {
 			log.Printf("Warning: Failed to fetch site list for account %s during refresh: %v", accountID, err)
 			continue
@@ -156,13 +159,15 @@ func (rm *Manager) refreshAllSiteLists() {
 
 		// Get existing metrics for sites
 		existingMetricsMap := make(map[string]map[string]pantheon.MetricData)
+		existingSiteIDMap := make(map[string]string)
 		for _, site := range existingSites {
 			key := site.Account + ":" + site.SiteName
 			existingMetricsMap[key] = site.MetricsData
+			existingSiteIDMap[key] = site.SiteID
 		}
 
 		// Create site metrics entries, preserving existing metrics data
-		for _, site := range siteList {
+		for siteID, site := range siteList {
 			key := accountID + ":" + site.Name
 			newSitesMap[key] = true
 
@@ -173,6 +178,7 @@ func (rm *Manager) refreshAllSiteLists() {
 
 			siteMetrics := pantheon.SiteMetrics{
 				SiteName:    site.Name,
+				SiteID:      siteID,
 				Label:       site.Name,
 				PlanName:    site.PlanName,
 				Account:     accountID,
@@ -254,7 +260,7 @@ func (rm *Manager) refreshMetricsWithQueue() {
 			len(sitesToProcess), siteIndex, endIndex-1, len(currentSites))
 
 		for _, site := range sitesToProcess {
-			go rm.refreshSiteMetrics(site.Account, site.SiteName)
+			go rm.refreshSiteMetrics(site.Account, site.SiteName, site.SiteID)
 		}
 
 		siteIndex = endIndex
@@ -268,7 +274,9 @@ func (rm *Manager) refreshMetricsWithQueue() {
 }
 
 // refreshSiteMetrics refreshes metrics for a single site
-func (rm *Manager) refreshSiteMetrics(accountID, siteName string) {
+func (rm *Manager) refreshSiteMetrics(accountID, siteName, siteID string) {
+	ctx := context.Background()
+
 	// Find the token for this account from the mapping
 	token, ok := rm.accountTokenMap[accountID]
 	if !ok {
@@ -276,14 +284,17 @@ func (rm *Manager) refreshSiteMetrics(accountID, siteName string) {
 		return
 	}
 
-	// Authenticate with this token
-	if err := pantheon.AuthenticateWithToken(token); err != nil {
-		log.Printf("Warning: Failed to authenticate account %s for metrics refresh: %v", accountID, err)
-		return
+	// Determine duration based on whether this site has been fetched before
+	duration := RefreshMetricsDuration
+	key := accountID + ":" + siteName
+	if !rm.discoveredSites[key] {
+		// First time fetching this site, use longer duration
+		duration = InitialMetricsDuration
+		rm.discoveredSites[key] = true
 	}
 
 	// Fetch metrics for this site
-	metricsData, err := pantheon.FetchMetricsData(siteName, rm.environment)
+	metricsData, err := rm.client.FetchMetricsData(ctx, token, siteID, rm.environment, duration)
 	if err != nil {
 		log.Printf("Warning: Failed to refresh metrics for %s.%s: %v", accountID, siteName, err)
 		return

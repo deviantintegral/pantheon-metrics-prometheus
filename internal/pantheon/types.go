@@ -57,9 +57,10 @@ type SiteListEntry struct {
 // SiteMetrics holds metrics data for a specific site
 type SiteMetrics struct {
 	SiteName    string
+	SiteID      string // Site UUID for API calls
 	Label       string
 	PlanName    string
-	Account     string // Account identifier (truncated token)
+	Account     string // Account identifier (email or truncated token)
 	MetricsData map[string]MetricData
 }
 

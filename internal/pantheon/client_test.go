@@ -374,57 +374,14 @@ func TestLoadSiteListError(t *testing.T) {
 	}
 }
 
-func TestFetchSiteMetrics(t *testing.T) {
-	// Test FetchSiteMetrics - will fail without terminus but exercises the function
-	_, err := FetchSiteMetrics("testsite", "live")
-	// Should get an error since terminus is not available
-	if err == nil {
-		t.Error("Expected error when terminus is not available, got nil")
+func TestNewClient(t *testing.T) {
+	// Test that NewClient creates a client with a session manager
+	client := NewClient()
+	if client == nil {
+		t.Fatal("Expected non-nil client")
 	}
-}
-
-func TestFetchMetricsData(t *testing.T) {
-	// Test FetchMetricsData - will fail without terminus but exercises the function
-	_, err := FetchMetricsData("testsite", "live")
-	// Should get an error since terminus is not available
-	if err == nil {
-		t.Error("Expected error when terminus is not available, got nil")
-	}
-}
-
-func TestFetchSiteInfo(t *testing.T) {
-	// Test FetchSiteInfo - will fail without terminus but exercises the function
-	_, err := FetchSiteInfo("testsite")
-	// Should get an error since terminus is not available
-	if err == nil {
-		t.Error("Expected error when terminus is not available, got nil")
-	}
-}
-
-func TestFetchAllSites(t *testing.T) {
-	// Test FetchAllSites - will fail without terminus but exercises the function
-	_, err := FetchAllSites()
-	// Should get an error since terminus is not available
-	if err == nil {
-		t.Error("Expected error when terminus is not available, got nil")
-	}
-}
-
-func TestAuthenticateWithToken(t *testing.T) {
-	// Test AuthenticateWithToken - will fail without terminus but exercises the function
-	err := AuthenticateWithToken("test-token-12345678")
-	// Should get an error since terminus is not available
-	if err == nil {
-		t.Error("Expected error when terminus is not available, got nil")
-	}
-}
-
-func TestExecuteTerminusCommand(t *testing.T) {
-	// Test executeTerminusCommand - will fail without terminus but exercises the function
-	_, err := executeTerminusCommand("--version")
-	// Should get an error since terminus is not available
-	if err == nil {
-		t.Error("Expected error when terminus is not available, got nil")
+	if client.sessionManager == nil {
+		t.Fatal("Expected client to have session manager")
 	}
 }
 

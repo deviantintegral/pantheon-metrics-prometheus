@@ -2,6 +2,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,10 +15,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// InitialMetricsDuration is used for the first metrics fetch (28 days of history).
+const InitialMetricsDuration = "28d"
+
 // createSiteMetrics creates a SiteMetrics struct from site list entry and metrics data
-func createSiteMetrics(siteName, accountID, planName string, metricsData map[string]pantheon.MetricData) pantheon.SiteMetrics {
+func createSiteMetrics(siteName, siteID, accountID, planName string, metricsData map[string]pantheon.MetricData) pantheon.SiteMetrics {
 	return pantheon.SiteMetrics{
 		SiteName:    siteName,
+		SiteID:      siteID,
 		Label:       siteName, // site:list doesn't provide a label field, using name
 		PlanName:    planName,
 		Account:     accountID,
@@ -26,16 +31,16 @@ func createSiteMetrics(siteName, accountID, planName string, metricsData map[str
 }
 
 // processAccountSiteList processes a list of sites for an account and collects metrics
-func processAccountSiteList(accountID, environment string, siteList map[string]pantheon.SiteListEntry) ([]pantheon.SiteMetrics, int, int) {
+func processAccountSiteList(ctx context.Context, client *pantheon.Client, token, accountID, environment string, siteList map[string]pantheon.SiteListEntry) ([]pantheon.SiteMetrics, int, int) {
 	siteMetrics := make([]pantheon.SiteMetrics, 0, len(siteList))
 	successCount := 0
 	failCount := 0
 
-	for _, site := range siteList {
+	for siteID, site := range siteList {
 		log.Printf("Account %s: Processing site %s (plan: %s)", accountID, site.Name, site.PlanName)
 
-		// Fetch metrics for this site
-		metricsData, err := pantheon.FetchMetricsData(site.Name, environment)
+		// Fetch metrics for this site (use 28d for initial fetch)
+		metricsData, err := client.FetchMetricsData(ctx, token, siteID, environment, InitialMetricsDuration)
 		if err != nil {
 			log.Printf("Warning: Failed to fetch metrics for %s.%s: %v", accountID, site.Name, err)
 			failCount++
@@ -43,7 +48,7 @@ func processAccountSiteList(accountID, environment string, siteList map[string]p
 		}
 
 		// Create SiteMetrics entry with account label
-		metrics := createSiteMetrics(site.Name, accountID, site.PlanName, metricsData)
+		metrics := createSiteMetrics(site.Name, siteID, accountID, site.PlanName, metricsData)
 		siteMetrics = append(siteMetrics, metrics)
 		successCount++
 		log.Printf("Account %s: Successfully loaded %d metric entries for %s", accountID, len(metricsData), site.Name)
@@ -53,30 +58,22 @@ func processAccountSiteList(accountID, environment string, siteList map[string]p
 }
 
 // collectAccountMetrics collects metrics for a single account
-func collectAccountMetrics(token, environment string) ([]pantheon.SiteMetrics, int, int) {
+func collectAccountMetrics(ctx context.Context, client *pantheon.Client, token, environment string) ([]pantheon.SiteMetrics, int, int) {
 	var siteMetrics []pantheon.SiteMetrics
 	successCount := 0
 	failCount := 0
 
 	// Authenticate with this token
-	if err := pantheon.AuthenticateWithToken(token); err != nil {
+	accountID, err := client.Authenticate(ctx, token)
+	if err != nil {
 		// Use token suffix as fallback for logging if auth fails
-		accountID := pantheon.GetAccountID(token)
+		accountID = pantheon.GetAccountID(token)
 		log.Printf("Warning: Failed to authenticate account %s: %v", accountID, err)
 		return siteMetrics, successCount, failCount
 	}
 
-	// Get the authenticated account email
-	accountID, err := pantheon.GetAuthenticatedAccountEmail()
-	if err != nil {
-		// Use token suffix as fallback if we can't get email
-		accountID = pantheon.GetAccountID(token)
-		log.Printf("Warning: Failed to get account email %s: %v", accountID, err)
-		return siteMetrics, successCount, failCount
-	}
-
 	// Fetch all sites for this account
-	siteList, err := pantheon.FetchAllSites()
+	siteList, err := client.FetchAllSites(ctx, token)
 	if err != nil {
 		log.Printf("Warning: Failed to fetch site list for account %s: %v", accountID, err)
 		return siteMetrics, successCount, failCount
@@ -85,37 +82,30 @@ func collectAccountMetrics(token, environment string) ([]pantheon.SiteMetrics, i
 	log.Printf("Account %s: Found %d sites", accountID, len(siteList))
 
 	// Process all sites
-	siteMetrics, successCount, failCount = processAccountSiteList(accountID, environment, siteList)
+	siteMetrics, successCount, failCount = processAccountSiteList(ctx, client, token, accountID, environment, siteList)
 
 	log.Printf("Account %s: Metrics collection complete: %d successful, %d failed", accountID, successCount, failCount)
 	return siteMetrics, successCount, failCount
 }
 
 // CollectAllSiteLists collects site lists for all accounts without fetching metrics
-func CollectAllSiteLists(tokens []string) []pantheon.SiteMetrics {
+func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []string) []pantheon.SiteMetrics {
 	var allSiteMetrics []pantheon.SiteMetrics
 
 	for tokenIdx, token := range tokens {
 		log.Printf("Loading site list for account %d/%d", tokenIdx+1, len(tokens))
 
 		// Authenticate with this token
-		if err := pantheon.AuthenticateWithToken(token); err != nil {
+		accountID, err := client.Authenticate(ctx, token)
+		if err != nil {
 			// Use token suffix as fallback for logging if auth fails
-			accountID := pantheon.GetAccountID(token)
+			accountID = pantheon.GetAccountID(token)
 			log.Printf("Warning: Failed to authenticate account %s: %v", accountID, err)
 			continue
 		}
 
-		// Get the authenticated account email
-		accountID, err := pantheon.GetAuthenticatedAccountEmail()
-		if err != nil {
-			// Use token suffix as fallback if we can't get email
-			accountID = pantheon.GetAccountID(token)
-			log.Printf("Warning: Failed to get account email, using token suffix %s: %v", accountID, err)
-		}
-
 		// Fetch all sites for this account
-		siteList, err := pantheon.FetchAllSites()
+		siteList, err := client.FetchAllSites(ctx, token)
 		if err != nil {
 			log.Printf("Warning: Failed to fetch site list for account %s: %v", accountID, err)
 			continue
@@ -124,9 +114,10 @@ func CollectAllSiteLists(tokens []string) []pantheon.SiteMetrics {
 		log.Printf("Account %s: Found %d sites", accountID, len(siteList))
 
 		// Create site metrics entries with empty metrics data
-		for _, site := range siteList {
+		for siteID, site := range siteList {
 			siteMetrics := pantheon.SiteMetrics{
 				SiteName:    site.Name,
+				SiteID:      siteID,
 				Label:       site.Name,
 				PlanName:    site.PlanName,
 				Account:     accountID,
@@ -141,7 +132,7 @@ func CollectAllSiteLists(tokens []string) []pantheon.SiteMetrics {
 }
 
 // CollectAllMetrics collects metrics for all accounts
-func CollectAllMetrics(tokens []string, environment string) []pantheon.SiteMetrics {
+func CollectAllMetrics(ctx context.Context, client *pantheon.Client, tokens []string, environment string) []pantheon.SiteMetrics {
 	var allSiteMetrics []pantheon.SiteMetrics
 	totalSuccessCount := 0
 	totalFailCount := 0
@@ -149,7 +140,7 @@ func CollectAllMetrics(tokens []string, environment string) []pantheon.SiteMetri
 	for tokenIdx, token := range tokens {
 		log.Printf("Processing account %d/%d", tokenIdx+1, len(tokens))
 
-		siteMetrics, successCount, failCount := collectAccountMetrics(token, environment)
+		siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment)
 		allSiteMetrics = append(allSiteMetrics, siteMetrics...)
 		totalSuccessCount += successCount
 		totalFailCount += failCount
@@ -200,8 +191,8 @@ func SetupHTTPHandlers(registry *prometheus.Registry, environment string, tokens
 }
 
 // StartRefreshManager creates and starts the refresh manager
-func StartRefreshManager(tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector) *refresh.Manager {
-	refreshManager := refresh.NewManager(tokens, environment, refreshInterval, c)
+func StartRefreshManager(client *pantheon.Client, tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector) *refresh.Manager {
+	refreshManager := refresh.NewManager(client, tokens, environment, refreshInterval, c)
 	refreshManager.Start()
 	return refreshManager
 }
