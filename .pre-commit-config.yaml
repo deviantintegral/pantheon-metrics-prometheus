@@ -1,11 +1,8 @@
-# Pre-commit hooks configuration
-# See https://pre-commit.com for more information
-# See https://pre-commit.com/hooks.html for more hooks
+exclude: ^vendor/
 
 repos:
-  # General hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: v4.5.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -14,32 +11,30 @@ repos:
       - id: check-merge-conflict
       - id: detect-private-key
 
-  # Go-specific hooks
-  - repo: https://github.com/tekwizely/pre-commit-golang
-    rev: v1.0.0-rc.1
+  - repo: https://github.com/TekWizely/pre-commit-golang
+    rev: v1.0.0-rc.4
     hooks:
-      # Run go mod tidy
-      - id: go-mod-tidy
-        stages: [pre-commit]
-
-      # Run go fmt
       - id: go-fmt
+        exclude: ^vendor/
+      - id: go-imports
+        exclude: ^vendor/
+      - id: go-mod-tidy
+      - id: golangci-lint-mod
+        args: ['--timeout=5m']
+      - id: go-test-mod
+        args: ['-v', '-race', '-coverprofile=coverage.out']
+
+  - repo: local
+    hooks:
+      - id: go-coverage-threshold
+        name: Check coverage threshold
+        entry: go run scripts/check-coverage-threshold.go coverage.out
+        language: system
+        pass_filenames: false
         stages: [pre-commit]
 
-      # Run go vet
-      - id: go-vet
-        stages: [pre-commit]
-
-      # Run golangci-lint
-      - id: golangci-lint
-        stages: [pre-commit]
-        args: [--config=.golangci.yml]
-
-      # Run go test
-      - id: go-test-pkg
-        stages: [pre-commit]
-        args: ["-race", "-cover"]
-
-      # Run go build
-      - id: go-build-pkg
-        stages: [pre-commit]
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.0.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]

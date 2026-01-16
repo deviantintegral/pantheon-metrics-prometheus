@@ -8,11 +8,12 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   release-please:
     name: Create Release PR
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
@@ -22,5 +23,4 @@ jobs:
         with:
           # This should match the configuration of your conventional commits
           release-type: go
-          # The package name (optional, defaults to repository name)
-          package-name: pantheon-metrics-prometheus
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}

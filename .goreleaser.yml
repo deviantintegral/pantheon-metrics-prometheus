@@ -10,7 +10,7 @@ before:
     - go mod verify
 
 builds:
-  - id: pantheon-metrics-exporter
+  - id: default
     main: .
     binary: pantheon-metrics-exporter
     env:
@@ -19,7 +19,6 @@ builds:
       - freebsd
       - linux
       - darwin
-      - windows
     goarch:
       - amd64
       - arm64
@@ -31,10 +30,27 @@ builds:
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
+  - id: windows
+    main: .
+    binary: pantheon-metrics-exporter
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
 
 archives:
   - id: default
-    format: tar.gz
+    builds:
+      - default
+    formats: [tar.gz]
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
@@ -43,9 +59,22 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    format_overrides:
-      - goos: windows
-        format: zip
+    files:
+      - README.md
+      - LICENSE*
+      - CONTRIBUTING.md
+  - id: windows
+    builds:
+      - windows
+    formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
     files:
       - README.md
       - LICENSE*

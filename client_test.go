@@ -6,9 +6,9 @@ import (
 )
 
 const (
-	testSiteName       = "site1234"
-	testSiteLabel      = "Example Site"
-	testSitePlanName   = "Performance Small"
+	testSiteName     = "site1234"
+	testSiteLabel    = "Example Site"
+	testSitePlanName = "Performance Small"
 )
 
 func TestLoadMetricsData(t *testing.T) {
