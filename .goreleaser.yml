@@ -26,6 +26,9 @@ builds:
       - arm
     goarm:
       - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
@@ -34,7 +37,7 @@ builds:
 
 archives:
   - id: default
-    format: tar.gz
+    formats: [tar.gz]
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
@@ -43,13 +46,30 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    format_overrides:
-      - goos: windows
-        format: zip
     files:
       - README.md
       - LICENSE*
       - CONTRIBUTING.md
+    filter:
+      exclude:
+        - goos: windows
+  - id: windows
+    formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    files:
+      - README.md
+      - LICENSE*
+      - CONTRIBUTING.md
+    filter:
+      include:
+        - goos: windows
 
 checksum:
   name_template: 'checksums.txt'
