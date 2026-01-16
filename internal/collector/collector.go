@@ -1,4 +1,5 @@
-package main
+// Package collector provides a Prometheus collector for Pantheon metrics.
+package collector
 
 import (
 	"log"
@@ -7,12 +8,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/pantheon"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 // PantheonCollector collects Pantheon metrics for multiple sites
 type PantheonCollector struct {
-	sites []SiteMetrics
+	sites []pantheon.SiteMetrics
 	mu    sync.RWMutex
 
 	visits        *prometheus.Desc
@@ -23,7 +25,7 @@ type PantheonCollector struct {
 }
 
 // NewPantheonCollector creates a new Pantheon metrics collector
-func NewPantheonCollector(sites []SiteMetrics) *PantheonCollector {
+func NewPantheonCollector(sites []pantheon.SiteMetrics) *PantheonCollector {
 	return &PantheonCollector{
 		sites: sites,
 		visits: prometheus.NewDesc(
@@ -131,23 +133,23 @@ func (c *PantheonCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 // UpdateSites updates the sites in the collector (thread-safe)
-func (c *PantheonCollector) UpdateSites(sites []SiteMetrics) {
+func (c *PantheonCollector) UpdateSites(sites []pantheon.SiteMetrics) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.sites = sites
 }
 
 // GetSites returns a copy of the current sites (thread-safe)
-func (c *PantheonCollector) GetSites() []SiteMetrics {
+func (c *PantheonCollector) GetSites() []pantheon.SiteMetrics {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	sitesCopy := make([]SiteMetrics, len(c.sites))
+	sitesCopy := make([]pantheon.SiteMetrics, len(c.sites))
 	copy(sitesCopy, c.sites)
 	return sitesCopy
 }
 
 // UpdateSiteMetrics updates metrics for a specific site (thread-safe)
-func (c *PantheonCollector) UpdateSiteMetrics(accountID, siteName string, metricsData map[string]MetricData) {
+func (c *PantheonCollector) UpdateSiteMetrics(accountID, siteName string, metricsData map[string]pantheon.MetricData) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

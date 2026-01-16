@@ -1,21 +1,22 @@
-package main
+// Package app provides the main application logic for the Pantheon metrics exporter.
+package app
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/collector"
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/pantheon"
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/refresh"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // createSiteMetrics creates a SiteMetrics struct from site list entry and metrics data
-func createSiteMetrics(siteName, accountID, planName string, metricsData map[string]MetricData) SiteMetrics {
-	return SiteMetrics{
+func createSiteMetrics(siteName, accountID, planName string, metricsData map[string]pantheon.MetricData) pantheon.SiteMetrics {
+	return pantheon.SiteMetrics{
 		SiteName:    siteName,
 		Label:       siteName, // site:list doesn't provide a label field, using name
 		PlanName:    planName,
@@ -25,8 +26,8 @@ func createSiteMetrics(siteName, accountID, planName string, metricsData map[str
 }
 
 // processAccountSiteList processes a list of sites for an account and collects metrics
-func processAccountSiteList(accountID, environment string, siteList map[string]SiteListEntry) ([]SiteMetrics, int, int) {
-	siteMetrics := make([]SiteMetrics, 0, len(siteList))
+func processAccountSiteList(accountID, environment string, siteList map[string]pantheon.SiteListEntry) ([]pantheon.SiteMetrics, int, int) {
+	siteMetrics := make([]pantheon.SiteMetrics, 0, len(siteList))
 	successCount := 0
 	failCount := 0
 
@@ -34,7 +35,7 @@ func processAccountSiteList(accountID, environment string, siteList map[string]S
 		log.Printf("Account %s: Processing site %s (plan: %s)", accountID, site.Name, site.PlanName)
 
 		// Fetch metrics for this site
-		metricsData, err := fetchMetricsData(site.Name, environment)
+		metricsData, err := pantheon.FetchMetricsData(site.Name, environment)
 		if err != nil {
 			log.Printf("Warning: Failed to fetch metrics for %s.%s: %v", accountID, site.Name, err)
 			failCount++
@@ -52,30 +53,30 @@ func processAccountSiteList(accountID, environment string, siteList map[string]S
 }
 
 // collectAccountMetrics collects metrics for a single account
-func collectAccountMetrics(token, environment string) ([]SiteMetrics, int, int) {
-	var siteMetrics []SiteMetrics
+func collectAccountMetrics(token, environment string) ([]pantheon.SiteMetrics, int, int) {
+	var siteMetrics []pantheon.SiteMetrics
 	successCount := 0
 	failCount := 0
 
 	// Authenticate with this token
-	if err := authenticateWithToken(token); err != nil {
+	if err := pantheon.AuthenticateWithToken(token); err != nil {
 		// Use token suffix as fallback for logging if auth fails
-		accountID := getAccountID(token)
+		accountID := pantheon.GetAccountID(token)
 		log.Printf("Warning: Failed to authenticate account %s: %v", accountID, err)
 		return siteMetrics, successCount, failCount
 	}
 
 	// Get the authenticated account email
-	accountID, err := getAuthenticatedAccountEmail()
+	accountID, err := pantheon.GetAuthenticatedAccountEmail()
 	if err != nil {
 		// Use token suffix as fallback if we can't get email
-		accountID = getAccountID(token)
+		accountID = pantheon.GetAccountID(token)
 		log.Printf("Warning: Failed to get account email %s: %v", accountID, err)
 		return siteMetrics, successCount, failCount
 	}
 
 	// Fetch all sites for this account
-	siteList, err := fetchAllSites()
+	siteList, err := pantheon.FetchAllSites()
 	if err != nil {
 		log.Printf("Warning: Failed to fetch site list for account %s: %v", accountID, err)
 		return siteMetrics, successCount, failCount
@@ -90,31 +91,31 @@ func collectAccountMetrics(token, environment string) ([]SiteMetrics, int, int) 
 	return siteMetrics, successCount, failCount
 }
 
-// collectAllSiteLists collects site lists for all accounts without fetching metrics
-func collectAllSiteLists(tokens []string) []SiteMetrics {
-	var allSiteMetrics []SiteMetrics
+// CollectAllSiteLists collects site lists for all accounts without fetching metrics
+func CollectAllSiteLists(tokens []string) []pantheon.SiteMetrics {
+	var allSiteMetrics []pantheon.SiteMetrics
 
 	for tokenIdx, token := range tokens {
 		log.Printf("Loading site list for account %d/%d", tokenIdx+1, len(tokens))
 
 		// Authenticate with this token
-		if err := authenticateWithToken(token); err != nil {
+		if err := pantheon.AuthenticateWithToken(token); err != nil {
 			// Use token suffix as fallback for logging if auth fails
-			accountID := getAccountID(token)
+			accountID := pantheon.GetAccountID(token)
 			log.Printf("Warning: Failed to authenticate account %s: %v", accountID, err)
 			continue
 		}
 
 		// Get the authenticated account email
-		accountID, err := getAuthenticatedAccountEmail()
+		accountID, err := pantheon.GetAuthenticatedAccountEmail()
 		if err != nil {
 			// Use token suffix as fallback if we can't get email
-			accountID = getAccountID(token)
+			accountID = pantheon.GetAccountID(token)
 			log.Printf("Warning: Failed to get account email, using token suffix %s: %v", accountID, err)
 		}
 
 		// Fetch all sites for this account
-		siteList, err := fetchAllSites()
+		siteList, err := pantheon.FetchAllSites()
 		if err != nil {
 			log.Printf("Warning: Failed to fetch site list for account %s: %v", accountID, err)
 			continue
@@ -124,12 +125,12 @@ func collectAllSiteLists(tokens []string) []SiteMetrics {
 
 		// Create site metrics entries with empty metrics data
 		for _, site := range siteList {
-			siteMetrics := SiteMetrics{
+			siteMetrics := pantheon.SiteMetrics{
 				SiteName:    site.Name,
 				Label:       site.Name,
 				PlanName:    site.PlanName,
 				Account:     accountID,
-				MetricsData: make(map[string]MetricData),
+				MetricsData: make(map[string]pantheon.MetricData),
 			}
 			allSiteMetrics = append(allSiteMetrics, siteMetrics)
 		}
@@ -139,9 +140,9 @@ func collectAllSiteLists(tokens []string) []SiteMetrics {
 	return allSiteMetrics
 }
 
-// collectAllMetrics collects metrics for all accounts
-func collectAllMetrics(tokens []string, environment string) []SiteMetrics {
-	var allSiteMetrics []SiteMetrics
+// CollectAllMetrics collects metrics for all accounts
+func CollectAllMetrics(tokens []string, environment string) []pantheon.SiteMetrics {
+	var allSiteMetrics []pantheon.SiteMetrics
 	totalSuccessCount := 0
 	totalFailCount := 0
 
@@ -159,9 +160,9 @@ func collectAllMetrics(tokens []string, environment string) []SiteMetrics {
 }
 
 // createRootHandler creates the HTTP handler for the root path
-func createRootHandler(environment string, tokens []string, collector *PantheonCollector) http.HandlerFunc {
+func createRootHandler(environment string, tokens []string, c *collector.PantheonCollector) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		allSiteMetrics := collector.GetSites()
+		allSiteMetrics := c.GetSites()
 
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = fmt.Fprintf(w, `
@@ -189,88 +190,18 @@ func createRootHandler(environment string, tokens []string, collector *PantheonC
 	}
 }
 
-// setupHTTPHandlers sets up HTTP routes for the metrics exporter
-func setupHTTPHandlers(registry *prometheus.Registry, environment string, tokens []string, collector *PantheonCollector) {
+// SetupHTTPHandlers sets up HTTP routes for the metrics exporter
+func SetupHTTPHandlers(registry *prometheus.Registry, environment string, tokens []string, c *collector.PantheonCollector) {
 	// Create HTTP handler for metrics
 	http.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 
 	// Root handler with instructions
-	http.HandleFunc("/", createRootHandler(environment, tokens, collector))
+	http.HandleFunc("/", createRootHandler(environment, tokens, c))
 }
 
-// startRefreshManager creates and starts the refresh manager
-func startRefreshManager(tokens []string, environment string, refreshInterval time.Duration, collector *PantheonCollector) *RefreshManager {
-	refreshManager := NewRefreshManager(tokens, environment, refreshInterval, collector)
+// StartRefreshManager creates and starts the refresh manager
+func StartRefreshManager(tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector) *refresh.Manager {
+	refreshManager := refresh.NewManager(tokens, environment, refreshInterval, c)
 	refreshManager.Start()
 	return refreshManager
-}
-
-func main() {
-	// Parse command-line flags
-	environment := flag.String("env", "live", "Pantheon environment (default: live)")
-	port := flag.String("port", "8080", "HTTP server port (default: 8080)")
-	refreshInterval := flag.Int("refreshInterval", 60, "Refresh interval in minutes (default: 60)")
-	flag.Parse()
-
-	// Read machine tokens from environment variable
-	tokensEnv := os.Getenv("PANTHEON_MACHINE_TOKENS")
-	if tokensEnv == "" {
-		log.Fatal("PANTHEON_MACHINE_TOKENS environment variable is not set")
-	}
-
-	// Split tokens by space
-	tokens := strings.Fields(tokensEnv)
-	if len(tokens) == 0 {
-		log.Fatal("No tokens found in PANTHEON_MACHINE_TOKENS")
-	}
-
-	log.Printf("Found %d Pantheon account(s) to process", len(tokens))
-
-	// Collect site lists first (fast - no metrics)
-	log.Printf("Loading site lists...")
-	allSites := collectAllSiteLists(tokens)
-
-	// Create collector with sites (empty metrics initially)
-	collector := NewPantheonCollector(allSites)
-
-	// Register the collector
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(collector)
-
-	// Setup HTTP handlers
-	setupHTTPHandlers(registry, *environment, tokens, collector)
-
-	// Start refresh manager
-	refreshIntervalDuration := time.Duration(*refreshInterval) * time.Minute
-	refreshManager := startRefreshManager(tokens, *environment, refreshIntervalDuration, collector)
-	refreshManager.InitializeDiscoveredSites()
-	log.Printf("Refresh manager started (interval: %d minutes)", *refreshInterval)
-
-	// Collect initial metrics in background goroutine
-	go func() {
-		log.Printf("Starting initial metrics collection in background...")
-		allSiteMetrics := collectAllMetrics(tokens, *environment)
-
-		if len(allSiteMetrics) > 0 {
-			log.Printf("Initial metrics collection complete: %d sites with metrics", len(allSiteMetrics))
-			collector.UpdateSites(allSiteMetrics)
-		}
-	}()
-
-	// Start server with timeouts
-	serverAddr := ":" + *port
-	log.Printf("Starting Pantheon metrics exporter on %s", serverAddr)
-	log.Printf("Metrics available at http://localhost%s/metrics", serverAddr)
-	log.Printf("Server is ready to serve requests (metrics collection running in background)")
-
-	server := &http.Server{
-		Addr:         serverAddr,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("Error starting server: %v", err)
-	}
 }

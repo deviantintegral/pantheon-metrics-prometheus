@@ -1,4 +1,5 @@
-package main
+// Package pantheon provides types and client functions for interacting with Pantheon via Terminus CLI.
+package pantheon
 
 // MetricData represents a single metric entry from Terminus
 type MetricData struct {
@@ -60,4 +61,9 @@ type SiteMetrics struct {
 	PlanName    string
 	Account     string // Account identifier (truncated token)
 	MetricsData map[string]MetricData
+}
+
+// WhoAmIResponse represents the response from terminus auth:whoami
+type WhoAmIResponse struct {
+	Email string `json:"email"`
 }

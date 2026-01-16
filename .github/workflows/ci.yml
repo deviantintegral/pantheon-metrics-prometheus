@@ -39,7 +39,7 @@ jobs:
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
       - name: Check coverage threshold
-        run: go run scripts/check-coverage-threshold.go coverage.out
+        run: go run scripts/check-coverage-threshold.go coverage.out 56.0
 
       - name: Code Coverage Annotation
         if: github.event_name == 'pull_request'
@@ -75,16 +75,16 @@ jobs:
         include:
           - platform: linux
             targets: |
-              GOOS=linux GOARCH=amd64 go build -o bin/pantheon-metrics-prometheus-linux-amd64 .
-              GOOS=linux GOARCH=arm64 go build -o bin/pantheon-metrics-prometheus-linux-arm64 .
+              GOOS=linux GOARCH=amd64 go build -o bin/pantheon-metrics-prometheus-linux-amd64 ./cmd/pantheon-metrics-exporter
+              GOOS=linux GOARCH=arm64 go build -o bin/pantheon-metrics-prometheus-linux-arm64 ./cmd/pantheon-metrics-exporter
           - platform: macos
             targets: |
-              GOOS=darwin GOARCH=amd64 go build -o bin/pantheon-metrics-prometheus-darwin-amd64 .
-              GOOS=darwin GOARCH=arm64 go build -o bin/pantheon-metrics-prometheus-darwin-arm64 .
+              GOOS=darwin GOARCH=amd64 go build -o bin/pantheon-metrics-prometheus-darwin-amd64 ./cmd/pantheon-metrics-exporter
+              GOOS=darwin GOARCH=arm64 go build -o bin/pantheon-metrics-prometheus-darwin-arm64 ./cmd/pantheon-metrics-exporter
           - platform: windows
             targets: |
-              GOOS=windows GOARCH=amd64 go build -o bin/pantheon-metrics-prometheus-windows-amd64.exe .
-              GOOS=windows GOARCH=arm64 go build -o bin/pantheon-metrics-prometheus-windows-arm64.exe .
+              GOOS=windows GOARCH=amd64 go build -o bin/pantheon-metrics-prometheus-windows-amd64.exe ./cmd/pantheon-metrics-exporter
+              GOOS=windows GOARCH=arm64 go build -o bin/pantheon-metrics-prometheus-windows-arm64.exe ./cmd/pantheon-metrics-exporter
     steps:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6

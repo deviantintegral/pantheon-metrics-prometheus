@@ -28,7 +28,7 @@ repos:
     hooks:
       - id: go-coverage-threshold
         name: Check coverage threshold
-        entry: go run scripts/check-coverage-threshold.go coverage.out
+        entry: go run scripts/check-coverage-threshold.go coverage.out 56.0
         language: system
         pass_filenames: false
         stages: [pre-commit]

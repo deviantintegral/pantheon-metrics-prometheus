@@ -1,31 +1,35 @@
-package main
+// Package refresh provides periodic refresh management for site lists and metrics.
+package refresh
 
 import (
 	"log"
 	"math"
 	"sync/atomic"
 	"time"
+
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/collector"
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/pantheon"
 )
 
-// RefreshManager manages periodic refresh of site lists and metrics
-type RefreshManager struct {
+// Manager manages periodic refresh of site lists and metrics
+type Manager struct {
 	tokens          []string
 	environment     string
 	refreshInterval time.Duration
-	collector       *PantheonCollector
+	collector       *collector.PantheonCollector
 	discoveredSites map[string]bool   // Track sites discovered since app start (account:site format)
 	accountTokenMap map[string]string // Map from account email to token
 	tickerInterval  time.Duration     // Interval for metrics refresh ticker (defaults to 1 minute)
 	tickerFireCount int64             // Counter for ticker fires (for testing)
 }
 
-// NewRefreshManager creates a new refresh manager
-func NewRefreshManager(tokens []string, environment string, refreshInterval time.Duration, collector *PantheonCollector) *RefreshManager {
-	return &RefreshManager{
+// NewManager creates a new refresh manager
+func NewManager(tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector) *Manager {
+	return &Manager{
 		tokens:          tokens,
 		environment:     environment,
 		refreshInterval: refreshInterval,
-		collector:       collector,
+		collector:       c,
 		discoveredSites: make(map[string]bool),
 		accountTokenMap: make(map[string]string),
 		tickerInterval:  1 * time.Minute, // Default to 1 minute
@@ -33,17 +37,17 @@ func NewRefreshManager(tokens []string, environment string, refreshInterval time
 }
 
 // SetTickerInterval sets the ticker interval for metrics refresh (useful for testing)
-func (rm *RefreshManager) SetTickerInterval(interval time.Duration) {
+func (rm *Manager) SetTickerInterval(interval time.Duration) {
 	rm.tickerInterval = interval
 }
 
 // GetTickerFireCount returns the number of times the ticker has fired (useful for testing)
-func (rm *RefreshManager) GetTickerFireCount() int64 {
+func (rm *Manager) GetTickerFireCount() int64 {
 	return atomic.LoadInt64(&rm.tickerFireCount)
 }
 
 // InitializeDiscoveredSites populates the discovered sites map with initial sites
-func (rm *RefreshManager) InitializeDiscoveredSites() {
+func (rm *Manager) InitializeDiscoveredSites() {
 	sites := rm.collector.GetSites()
 	for _, site := range sites {
 		key := site.Account + ":" + site.SiteName
@@ -53,7 +57,7 @@ func (rm *RefreshManager) InitializeDiscoveredSites() {
 }
 
 // Start begins the periodic refresh process
-func (rm *RefreshManager) Start() {
+func (rm *Manager) Start() {
 	// Start site list refresh (every refresh interval)
 	go rm.refreshSiteListsPeriodically()
 
@@ -62,7 +66,7 @@ func (rm *RefreshManager) Start() {
 }
 
 // refreshSiteListsPeriodically refreshes site lists for all accounts
-func (rm *RefreshManager) refreshSiteListsPeriodically() {
+func (rm *Manager) refreshSiteListsPeriodically() {
 	ticker := time.NewTicker(rm.refreshInterval)
 	defer ticker.Stop()
 
@@ -73,7 +77,7 @@ func (rm *RefreshManager) refreshSiteListsPeriodically() {
 }
 
 // buildSiteKeyMap creates a map of site keys from a list of sites
-func buildSiteKeyMap(sites []SiteMetrics) map[string]bool {
+func buildSiteKeyMap(sites []pantheon.SiteMetrics) map[string]bool {
 	siteMap := make(map[string]bool)
 	for _, site := range sites {
 		key := site.Account + ":" + site.SiteName
@@ -108,8 +112,8 @@ func findRemovedSites(currentSites, newSites map[string]bool) []string {
 }
 
 // refreshAllSiteLists refreshes the site list for all accounts
-func (rm *RefreshManager) refreshAllSiteLists() {
-	var allSiteMetrics []SiteMetrics
+func (rm *Manager) refreshAllSiteLists() {
+	var allSiteMetrics []pantheon.SiteMetrics
 
 	// Get current sites to track changes
 	existingSites := rm.collector.GetSites()
@@ -121,18 +125,18 @@ func (rm *RefreshManager) refreshAllSiteLists() {
 
 	for _, token := range rm.tokens {
 		// Authenticate with this token
-		if err := authenticateWithToken(token); err != nil {
+		if err := pantheon.AuthenticateWithToken(token); err != nil {
 			// Use token suffix as fallback for logging if auth fails
-			accountID := getAccountID(token)
+			accountID := pantheon.GetAccountID(token)
 			log.Printf("Warning: Failed to authenticate account %s during refresh: %v", accountID, err)
 			continue
 		}
 
 		// Get the authenticated account email
-		accountID, err := getAuthenticatedAccountEmail()
+		accountID, err := pantheon.GetAuthenticatedAccountEmail()
 		if err != nil {
 			// Use token suffix as fallback if we can't get email
-			accountID = getAccountID(token)
+			accountID = pantheon.GetAccountID(token)
 			log.Printf("Warning: Failed to get account email during refresh, using token suffix %s: %v", accountID, err)
 		}
 
@@ -142,7 +146,7 @@ func (rm *RefreshManager) refreshAllSiteLists() {
 		log.Printf("Refreshing site list for account %s", accountID)
 
 		// Fetch all sites for this account
-		siteList, err := fetchAllSites()
+		siteList, err := pantheon.FetchAllSites()
 		if err != nil {
 			log.Printf("Warning: Failed to fetch site list for account %s during refresh: %v", accountID, err)
 			continue
@@ -151,7 +155,7 @@ func (rm *RefreshManager) refreshAllSiteLists() {
 		totalSitesFound += len(siteList)
 
 		// Get existing metrics for sites
-		existingMetricsMap := make(map[string]map[string]MetricData)
+		existingMetricsMap := make(map[string]map[string]pantheon.MetricData)
 		for _, site := range existingSites {
 			key := site.Account + ":" + site.SiteName
 			existingMetricsMap[key] = site.MetricsData
@@ -164,10 +168,10 @@ func (rm *RefreshManager) refreshAllSiteLists() {
 
 			metricsData := existingMetricsMap[key]
 			if metricsData == nil {
-				metricsData = make(map[string]MetricData)
+				metricsData = make(map[string]pantheon.MetricData)
 			}
 
-			siteMetrics := SiteMetrics{
+			siteMetrics := pantheon.SiteMetrics{
 				SiteName:    site.Name,
 				Label:       site.Name,
 				PlanName:    site.PlanName,
@@ -203,7 +207,7 @@ func (rm *RefreshManager) refreshAllSiteLists() {
 }
 
 // refreshMetricsWithQueue processes metrics refresh using a queue to prevent stampedes
-func (rm *RefreshManager) refreshMetricsWithQueue() {
+func (rm *Manager) refreshMetricsWithQueue() {
 	ticker := time.NewTicker(rm.tickerInterval)
 	defer ticker.Stop()
 
@@ -264,7 +268,7 @@ func (rm *RefreshManager) refreshMetricsWithQueue() {
 }
 
 // refreshSiteMetrics refreshes metrics for a single site
-func (rm *RefreshManager) refreshSiteMetrics(accountID, siteName string) {
+func (rm *Manager) refreshSiteMetrics(accountID, siteName string) {
 	// Find the token for this account from the mapping
 	token, ok := rm.accountTokenMap[accountID]
 	if !ok {
@@ -273,13 +277,13 @@ func (rm *RefreshManager) refreshSiteMetrics(accountID, siteName string) {
 	}
 
 	// Authenticate with this token
-	if err := authenticateWithToken(token); err != nil {
+	if err := pantheon.AuthenticateWithToken(token); err != nil {
 		log.Printf("Warning: Failed to authenticate account %s for metrics refresh: %v", accountID, err)
 		return
 	}
 
 	// Fetch metrics for this site
-	metricsData, err := fetchMetricsData(siteName, rm.environment)
+	metricsData, err := pantheon.FetchMetricsData(siteName, rm.environment)
 	if err != nil {
 		log.Printf("Warning: Failed to refresh metrics for %s.%s: %v", accountID, siteName, err)
 		return

@@ -1,22 +1,26 @@
-package main
+package refresh
 
 import (
 	"testing"
 	"time"
+
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/collector"
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/pantheon"
 )
 
 const (
+	testEnvLive = "live"
 	testEnvDev  = "dev"
 	testToken32 = "1234567890abcdef1234567890abcdef"
 )
 
-func TestNewRefreshManager(t *testing.T) {
+func TestNewManager(t *testing.T) {
 	// Test creating a new refresh manager
 	tokens := []string{"token1", "token2"}
 	environment := testEnvLive
 	refreshInterval := 60 * time.Minute
 
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        837,
@@ -27,7 +31,7 @@ func TestNewRefreshManager(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    "site1",
 			Label:       "Site 1",
@@ -37,9 +41,9 @@ func TestNewRefreshManager(t *testing.T) {
 		},
 	}
 
-	collector := NewPantheonCollector(sites)
+	collector := collector.NewPantheonCollector(sites)
 
-	manager := NewRefreshManager(tokens, environment, refreshInterval, collector)
+	manager := NewManager(tokens, environment, refreshInterval, collector)
 
 	if manager == nil {
 		t.Fatal("Expected refresh manager to be created, got nil")
@@ -62,16 +66,16 @@ func TestNewRefreshManager(t *testing.T) {
 	}
 }
 
-func TestNewRefreshManagerWithMultipleTokens(t *testing.T) {
+func TestNewManagerWithMultipleTokens(t *testing.T) {
 	// Test creating a refresh manager with multiple tokens
 	tokens := []string{"token1", "token2", "token3", "token4"}
 	environment := testEnvDev
 	refreshInterval := 30 * time.Minute
 
-	sites := []SiteMetrics{}
-	collector := NewPantheonCollector(sites)
+	sites := []pantheon.SiteMetrics{}
+	collector := collector.NewPantheonCollector(sites)
 
-	manager := NewRefreshManager(tokens, environment, refreshInterval, collector)
+	manager := NewManager(tokens, environment, refreshInterval, collector)
 
 	if len(manager.tokens) != 4 {
 		t.Errorf("Expected 4 tokens, got %d", len(manager.tokens))
@@ -86,16 +90,16 @@ func TestNewRefreshManagerWithMultipleTokens(t *testing.T) {
 	}
 }
 
-func TestNewRefreshManagerWithEmptyTokens(t *testing.T) {
+func TestNewManagerWithEmptyTokens(t *testing.T) {
 	// Test creating a refresh manager with empty tokens
 	tokens := []string{}
 	environment := "test"
 	refreshInterval := 15 * time.Minute
 
-	sites := []SiteMetrics{}
-	collector := NewPantheonCollector(sites)
+	sites := []pantheon.SiteMetrics{}
+	collector := collector.NewPantheonCollector(sites)
 
-	manager := NewRefreshManager(tokens, environment, refreshInterval, collector)
+	manager := NewManager(tokens, environment, refreshInterval, collector)
 
 	if manager == nil {
 		t.Fatal("Expected refresh manager to be created, got nil")
@@ -106,39 +110,39 @@ func TestNewRefreshManagerWithEmptyTokens(t *testing.T) {
 	}
 }
 
-func TestNewRefreshManagerWithDifferentIntervals(t *testing.T) {
+func TestNewManagerWithDifferentIntervals(t *testing.T) {
 	// Test creating refresh managers with different intervals
 	tokens := []string{"token1"}
 	environment := testEnvLive
-	sites := []SiteMetrics{}
-	collector := NewPantheonCollector(sites)
+	sites := []pantheon.SiteMetrics{}
+	collector := collector.NewPantheonCollector(sites)
 
 	// Test 5 minutes
-	manager1 := NewRefreshManager(tokens, environment, 5*time.Minute, collector)
+	manager1 := NewManager(tokens, environment, 5*time.Minute, collector)
 	if manager1.refreshInterval != 5*time.Minute {
 		t.Errorf("Expected refresh interval 5m, got %v", manager1.refreshInterval)
 	}
 
 	// Test 2 hours
-	manager2 := NewRefreshManager(tokens, environment, 120*time.Minute, collector)
+	manager2 := NewManager(tokens, environment, 120*time.Minute, collector)
 	if manager2.refreshInterval != 120*time.Minute {
 		t.Errorf("Expected refresh interval 120m, got %v", manager2.refreshInterval)
 	}
 
 	// Test 1 minute
-	manager3 := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+	manager3 := NewManager(tokens, environment, 1*time.Minute, collector)
 	if manager3.refreshInterval != 1*time.Minute {
 		t.Errorf("Expected refresh interval 1m, got %v", manager3.refreshInterval)
 	}
 }
 
-func TestRefreshManagerStart(t *testing.T) {
+func TestManagerStart(t *testing.T) {
 	// Test that Start() launches goroutines without panicking
 	tokens := []string{}
 	environment := testEnvLive
-	sites := []SiteMetrics{}
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+	sites := []pantheon.SiteMetrics{}
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, 1*time.Minute, collector)
 
 	// Start should not panic even with empty tokens
 	// We don't wait for goroutines to complete as they run indefinitely
@@ -160,9 +164,9 @@ func TestRefreshMetricsWithQueueEmptySites(_ *testing.T) {
 	// Test refreshMetricsWithQueue with no sites
 	tokens := []string{"token1"}
 	environment := testEnvLive
-	sites := []SiteMetrics{} // Empty sites
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+	sites := []pantheon.SiteMetrics{} // Empty sites
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, 1*time.Minute, collector)
 
 	// This should return immediately since there are no sites
 	done := make(chan bool, 1)
@@ -184,9 +188,9 @@ func TestRefreshSiteMetricsWithInvalidToken(_ *testing.T) {
 	// Test refreshSiteMetrics with an account that doesn't have a matching token
 	tokens := []string{"token1"}
 	environment := testEnvLive
-	sites := []SiteMetrics{}
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+	sites := []pantheon.SiteMetrics{}
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, 1*time.Minute, collector)
 
 	// Try to refresh metrics for a non-existent account
 	// This should log a warning and return without panicking
@@ -199,9 +203,9 @@ func TestRefreshAllSiteListsEmptyTokens(t *testing.T) {
 	// Test refreshAllSiteLists with empty tokens
 	tokens := []string{}
 	environment := testEnvLive
-	sites := []SiteMetrics{}
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+	sites := []pantheon.SiteMetrics{}
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, 1*time.Minute, collector)
 
 	// This should complete without panic even with no tokens
 	manager.refreshAllSiteLists()
@@ -213,12 +217,12 @@ func TestRefreshAllSiteListsEmptyTokens(t *testing.T) {
 	}
 }
 
-func TestRefreshManagerWithExistingSites(t *testing.T) {
+func TestManagerWithExistingSites(t *testing.T) {
 	// Test refresh manager behavior with existing sites in collector
 	tokens := []string{"token1", "token2"}
 	environment := testEnvDev
 
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -229,7 +233,7 @@ func TestRefreshManagerWithExistingSites(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    "site1",
 			Label:       "Site 1",
@@ -246,8 +250,8 @@ func TestRefreshManagerWithExistingSites(t *testing.T) {
 		},
 	}
 
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 30*time.Minute, collector)
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, 30*time.Minute, collector)
 
 	// Verify manager has access to existing sites through collector
 	currentSites := collector.GetSites()
@@ -266,7 +270,7 @@ func TestRefreshMetricsWithQueueWithSites(_ *testing.T) {
 	tokens := []string{"token1"}
 	environment := testEnvLive
 
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -277,7 +281,7 @@ func TestRefreshMetricsWithQueueWithSites(_ *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    "site1",
 			Label:       "Site 1",
@@ -294,8 +298,8 @@ func TestRefreshMetricsWithQueueWithSites(_ *testing.T) {
 		},
 	}
 
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, 1*time.Minute, collector)
 
 	// Start the refresh queue in background
 	done := make(chan bool, 1)
@@ -317,7 +321,7 @@ func TestRefreshAllSiteListsWithExistingSites(_ *testing.T) {
 	tokens := []string{"token1"}
 	environment := testEnvLive
 
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -329,7 +333,7 @@ func TestRefreshAllSiteListsWithExistingSites(_ *testing.T) {
 	}
 
 	// Start with some existing sites
-	existingSites := []SiteMetrics{
+	existingSites := []pantheon.SiteMetrics{
 		{
 			SiteName:    "oldsite",
 			Label:       "Old Site",
@@ -339,8 +343,8 @@ func TestRefreshAllSiteListsWithExistingSites(_ *testing.T) {
 		},
 	}
 
-	collector := NewPantheonCollector(existingSites)
-	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+	collector := collector.NewPantheonCollector(existingSites)
+	manager := NewManager(tokens, environment, 1*time.Minute, collector)
 
 	// Call refreshAllSiteLists
 	// This will fail when trying to authenticate, but will exercise the code path
@@ -351,15 +355,15 @@ func TestRefreshAllSiteListsWithExistingSites(_ *testing.T) {
 }
 
 func TestRefreshSiteMetricsWithMatchingToken(_ *testing.T) {
-	// Test refreshSiteMetrics with a token that matches via getAccountID
+	// Test refreshSiteMetrics with a token that matches via pantheon.GetAccountID
 	token := testToken32
-	accountID := getAccountID(token) // Should return "90abcdef"
+	accountID := pantheon.GetAccountID(token) // Should return "90abcdef"
 
 	tokens := []string{token}
 	environment := testEnvLive
-	sites := []SiteMetrics{}
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+	sites := []pantheon.SiteMetrics{}
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, 1*time.Minute, collector)
 
 	// Try to refresh metrics - will fail at authentication but exercises the token lookup path
 	manager.refreshSiteMetrics(accountID, "somesite")
@@ -369,9 +373,9 @@ func TestRefreshSiteListsPeriodically(_ *testing.T) {
 	// Test refreshSiteListsPeriodically starts and runs
 	tokens := []string{}
 	environment := testEnvLive
-	sites := []SiteMetrics{}
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 50*time.Millisecond, collector)
+	sites := []pantheon.SiteMetrics{}
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, 50*time.Millisecond, collector)
 
 	// Start the periodic refresh in background
 	done := make(chan bool, 1)
@@ -394,7 +398,7 @@ func TestRefreshAllSiteListsMultipleTokens(_ *testing.T) {
 	tokens := []string{"token1", "token2", "token3"}
 	environment := testEnvLive
 
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -406,7 +410,7 @@ func TestRefreshAllSiteListsMultipleTokens(_ *testing.T) {
 	}
 
 	// Start with some existing sites
-	existingSites := []SiteMetrics{
+	existingSites := []pantheon.SiteMetrics{
 		{
 			SiteName:    "oldsite1",
 			Label:       "Old Site 1",
@@ -423,8 +427,8 @@ func TestRefreshAllSiteListsMultipleTokens(_ *testing.T) {
 		},
 	}
 
-	collector := NewPantheonCollector(existingSites)
-	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+	collector := collector.NewPantheonCollector(existingSites)
+	manager := NewManager(tokens, environment, 1*time.Minute, collector)
 
 	// Call refreshAllSiteLists with multiple tokens
 	// This will fail when trying to authenticate, but will exercise the loop
@@ -436,7 +440,7 @@ func testRefreshMetricsWithQueueHelper(interval, sleepDuration time.Duration) {
 	tokens := []string{"token1"}
 	environment := testEnvLive
 
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -447,7 +451,7 @@ func testRefreshMetricsWithQueueHelper(interval, sleepDuration time.Duration) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    "site1",
 			Label:       "Site 1",
@@ -471,8 +475,8 @@ func testRefreshMetricsWithQueueHelper(interval, sleepDuration time.Duration) {
 		},
 	}
 
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, interval, collector)
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, interval, collector)
 
 	done := make(chan bool, 1)
 	go func() {
@@ -495,7 +499,7 @@ func TestRefreshMetricsWithQueueManySites(_ *testing.T) {
 	tokens := []string{"token1"}
 	environment := testEnvLive
 
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -507,9 +511,9 @@ func TestRefreshMetricsWithQueueManySites(_ *testing.T) {
 	}
 
 	// Create many sites to test the queue batching and cycling
-	sites := make([]SiteMetrics, 10)
+	sites := make([]pantheon.SiteMetrics, 10)
 	for i := 0; i < 10; i++ {
-		sites[i] = SiteMetrics{
+		sites[i] = pantheon.SiteMetrics{
 			SiteName:    "site" + string(rune('0'+i)),
 			Label:       "Site " + string(rune('0'+i)),
 			PlanName:    "Basic",
@@ -518,8 +522,8 @@ func TestRefreshMetricsWithQueueManySites(_ *testing.T) {
 		}
 	}
 
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 5*time.Minute, collector)
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, 5*time.Minute, collector)
 
 	// Start the refresh queue in background
 	done := make(chan bool, 1)
@@ -546,7 +550,7 @@ func TestRefreshMetricsWithQueueTickerFires(t *testing.T) {
 	tokens := []string{"token1"}
 	environment := testEnvLive
 
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -557,7 +561,7 @@ func TestRefreshMetricsWithQueueTickerFires(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    "site1",
 			Label:       "Site 1",
@@ -567,8 +571,8 @@ func TestRefreshMetricsWithQueueTickerFires(t *testing.T) {
 		},
 	}
 
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 3*time.Minute, collector)
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, 3*time.Minute, collector)
 
 	// Use a short ticker interval for testing (2 seconds)
 	manager.SetTickerInterval(2 * time.Second)
@@ -597,9 +601,9 @@ func TestInitializeDiscoveredSites(t *testing.T) {
 	// Test InitializeDiscoveredSites with no sites
 	tokens := []string{"token1"}
 	environment := testEnvLive
-	sites := []SiteMetrics{}
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+	sites := []pantheon.SiteMetrics{}
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, 1*time.Minute, collector)
 
 	manager.InitializeDiscoveredSites()
 
@@ -613,7 +617,7 @@ func TestInitializeDiscoveredSitesWithSites(t *testing.T) {
 	tokens := []string{"token1"}
 	environment := testEnvLive
 
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -624,7 +628,7 @@ func TestInitializeDiscoveredSitesWithSites(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    "site1",
 			Label:       "Site 1",
@@ -648,8 +652,8 @@ func TestInitializeDiscoveredSitesWithSites(t *testing.T) {
 		},
 	}
 
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, 1*time.Minute, collector)
 
 	manager.InitializeDiscoveredSites()
 
@@ -677,7 +681,7 @@ func TestInitializeDiscoveredSitesDuplicateAccounts(t *testing.T) {
 	tokens := []string{"token1"}
 	environment := testEnvLive
 
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -688,7 +692,7 @@ func TestInitializeDiscoveredSitesDuplicateAccounts(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    "site1",
 			Label:       "Site 1",
@@ -705,8 +709,8 @@ func TestInitializeDiscoveredSitesDuplicateAccounts(t *testing.T) {
 		},
 	}
 
-	collector := NewPantheonCollector(sites)
-	manager := NewRefreshManager(tokens, environment, 1*time.Minute, collector)
+	collector := collector.NewPantheonCollector(sites)
+	manager := NewManager(tokens, environment, 1*time.Minute, collector)
 
 	manager.InitializeDiscoveredSites()
 
@@ -725,7 +729,7 @@ func TestInitializeDiscoveredSitesDuplicateAccounts(t *testing.T) {
 
 func TestBuildSiteKeyMap(t *testing.T) {
 	// Test building a site key map from a list of sites
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -736,7 +740,7 @@ func TestBuildSiteKeyMap(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    "site1",
 			Label:       "Site 1",
@@ -776,7 +780,7 @@ func TestBuildSiteKeyMap(t *testing.T) {
 
 func TestBuildSiteKeyMapEmpty(t *testing.T) {
 	// Test building a site key map from an empty list
-	sites := []SiteMetrics{}
+	sites := []pantheon.SiteMetrics{}
 	siteMap := buildSiteKeyMap(sites)
 
 	if len(siteMap) != 0 {

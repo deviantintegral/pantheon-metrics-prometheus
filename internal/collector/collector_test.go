@@ -1,8 +1,9 @@
-package main
+package collector
 
 import (
 	"testing"
 
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/pantheon"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -12,7 +13,7 @@ const (
 
 func TestNewPantheonCollector(t *testing.T) {
 	// Test creating a new collector with multiple sites
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        837,
@@ -23,7 +24,7 @@ func TestNewPantheonCollector(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
@@ -52,7 +53,7 @@ func TestNewPantheonCollector(t *testing.T) {
 
 func TestDescribe(t *testing.T) {
 	// Test Describe method sends all metric descriptors
-	sites := []SiteMetrics{}
+	sites := []pantheon.SiteMetrics{}
 	collector := NewPantheonCollector(sites)
 
 	ch := make(chan *prometheus.Desc, 5)
@@ -73,7 +74,7 @@ func TestDescribe(t *testing.T) {
 
 func TestCollect(t *testing.T) {
 	// Test Collect method collects metrics from all sites
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        837,
@@ -92,7 +93,7 @@ func TestCollect(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
@@ -122,7 +123,7 @@ func TestCollect(t *testing.T) {
 
 func TestCollectWithMultipleSites(t *testing.T) {
 	// Test Collect with multiple sites
-	metricsData1 := map[string]MetricData{
+	metricsData1 := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        837,
@@ -133,7 +134,7 @@ func TestCollectWithMultipleSites(t *testing.T) {
 		},
 	}
 
-	metricsData2 := map[string]MetricData{
+	metricsData2 := map[string]pantheon.MetricData{
 		"1762819200": {
 			DateTime:      "2025-11-11T00:00:00",
 			Visits:        500,
@@ -144,7 +145,7 @@ func TestCollectWithMultipleSites(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
@@ -181,7 +182,7 @@ func TestCollectWithMultipleSites(t *testing.T) {
 
 func TestCollectWithInvalidTimestamp(t *testing.T) {
 	// Test Collect handles invalid timestamps gracefully
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"invalid_timestamp": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        837,
@@ -192,7 +193,7 @@ func TestCollectWithInvalidTimestamp(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
@@ -221,7 +222,7 @@ func TestCollectWithInvalidTimestamp(t *testing.T) {
 
 func TestCollectWithInvalidCacheHitRatio(t *testing.T) {
 	// Test Collect handles invalid cache hit ratio gracefully
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        837,
@@ -232,7 +233,7 @@ func TestCollectWithInvalidCacheHitRatio(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
@@ -262,7 +263,7 @@ func TestCollectWithInvalidCacheHitRatio(t *testing.T) {
 
 func TestUpdateSites(t *testing.T) {
 	// Test UpdateSites method
-	initialMetrics := map[string]MetricData{
+	initialMetrics := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -273,7 +274,7 @@ func TestUpdateSites(t *testing.T) {
 		},
 	}
 
-	initialSites := []SiteMetrics{
+	initialSites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
@@ -286,7 +287,7 @@ func TestUpdateSites(t *testing.T) {
 	collector := NewPantheonCollector(initialSites)
 
 	// Create new sites to update
-	newMetrics := map[string]MetricData{
+	newMetrics := map[string]pantheon.MetricData{
 		"1762819200": {
 			DateTime:      "2025-11-11T00:00:00",
 			Visits:        200,
@@ -297,7 +298,7 @@ func TestUpdateSites(t *testing.T) {
 		},
 	}
 
-	newSites := []SiteMetrics{
+	newSites := []pantheon.SiteMetrics{
 		{
 			SiteName:    "site2",
 			Label:       "Site 2",
@@ -334,7 +335,7 @@ func TestUpdateSites(t *testing.T) {
 
 func TestGetSites(t *testing.T) {
 	// Test GetSites returns a copy of sites
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        837,
@@ -345,7 +346,7 @@ func TestGetSites(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
@@ -381,7 +382,7 @@ func TestGetSites(t *testing.T) {
 
 func TestUpdateSiteMetrics(t *testing.T) {
 	// Test UpdateSiteMetrics updates metrics for a specific site
-	initialMetrics := map[string]MetricData{
+	initialMetrics := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -392,7 +393,7 @@ func TestUpdateSiteMetrics(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
@@ -412,7 +413,7 @@ func TestUpdateSiteMetrics(t *testing.T) {
 	collector := NewPantheonCollector(sites)
 
 	// Create new metrics to update
-	newMetrics := map[string]MetricData{
+	newMetrics := map[string]pantheon.MetricData{
 		"1762819200": {
 			DateTime:      "2025-11-11T00:00:00",
 			Visits:        200,
@@ -445,7 +446,7 @@ func TestUpdateSiteMetrics(t *testing.T) {
 
 func TestUpdateSiteMetricsNonExistent(t *testing.T) {
 	// Test UpdateSiteMetrics with non-existent site
-	initialMetrics := map[string]MetricData{
+	initialMetrics := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -456,7 +457,7 @@ func TestUpdateSiteMetricsNonExistent(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
@@ -469,7 +470,7 @@ func TestUpdateSiteMetricsNonExistent(t *testing.T) {
 	collector := NewPantheonCollector(sites)
 
 	// Try to update metrics for non-existent site
-	newMetrics := map[string]MetricData{
+	newMetrics := map[string]pantheon.MetricData{
 		"1762819200": {
 			DateTime:      "2025-11-11T00:00:00",
 			Visits:        200,
@@ -496,13 +497,13 @@ func TestUpdateSiteMetricsNonExistent(t *testing.T) {
 
 func TestCollectWithEmptyMetricsData(t *testing.T) {
 	// Test Collect with sites that have empty metrics data
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
 			PlanName:    "Basic",
 			Account:     "account1",
-			MetricsData: map[string]MetricData{}, // Empty metrics
+			MetricsData: map[string]pantheon.MetricData{}, // Empty metrics
 		},
 	}
 
@@ -525,7 +526,7 @@ func TestCollectWithEmptyMetricsData(t *testing.T) {
 
 func TestCollectWithNoCacheHitRatioPercentSign(t *testing.T) {
 	// Test Collect with cache hit ratio that has no % sign
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        837,
@@ -536,7 +537,7 @@ func TestCollectWithNoCacheHitRatioPercentSign(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
@@ -566,7 +567,7 @@ func TestCollectWithNoCacheHitRatioPercentSign(t *testing.T) {
 
 func TestNewPantheonCollectorWithEmptySites(t *testing.T) {
 	// Test creating collector with empty sites array
-	sites := []SiteMetrics{}
+	sites := []pantheon.SiteMetrics{}
 	collector := NewPantheonCollector(sites)
 
 	if collector == nil {
@@ -594,7 +595,7 @@ func TestNewPantheonCollectorWithEmptySites(t *testing.T) {
 
 func TestUpdateSitesWithEmptyArray(t *testing.T) {
 	// Test UpdateSites with empty array
-	initialMetrics := map[string]MetricData{
+	initialMetrics := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        100,
@@ -605,7 +606,7 @@ func TestUpdateSitesWithEmptyArray(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
@@ -618,7 +619,7 @@ func TestUpdateSitesWithEmptyArray(t *testing.T) {
 	collector := NewPantheonCollector(sites)
 
 	// Update with empty array
-	collector.UpdateSites([]SiteMetrics{})
+	collector.UpdateSites([]pantheon.SiteMetrics{})
 
 	// Get sites and verify they are empty
 	updatedSites := collector.GetSites()
@@ -629,7 +630,7 @@ func TestUpdateSitesWithEmptyArray(t *testing.T) {
 
 func TestCollectWithZeroValues(t *testing.T) {
 	// Test Collect with zero values in metrics
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        0,
@@ -640,7 +641,7 @@ func TestCollectWithZeroValues(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
@@ -669,7 +670,7 @@ func TestCollectWithZeroValues(t *testing.T) {
 
 func TestCollectWithLargeNumbers(t *testing.T) {
 	// Test Collect with very large numbers
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
 			Visits:        9999999,
@@ -680,7 +681,7 @@ func TestCollectWithLargeNumbers(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",
@@ -708,7 +709,7 @@ func TestCollectWithLargeNumbers(t *testing.T) {
 
 func TestCollectWithNegativeTimestamp(t *testing.T) {
 	// Test Collect with negative timestamp (edge case)
-	metricsData := map[string]MetricData{
+	metricsData := map[string]pantheon.MetricData{
 		"-100": {
 			DateTime:      "1960-01-01T00:00:00",
 			Visits:        100,
@@ -719,7 +720,7 @@ func TestCollectWithNegativeTimestamp(t *testing.T) {
 		},
 	}
 
-	sites := []SiteMetrics{
+	sites := []pantheon.SiteMetrics{
 		{
 			SiteName:    testCollectorSite1,
 			Label:       "Site 1",

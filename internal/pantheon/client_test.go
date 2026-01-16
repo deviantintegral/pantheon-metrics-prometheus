@@ -1,4 +1,4 @@
-package main
+package pantheon
 
 import (
 	"os"
@@ -13,7 +13,7 @@ const (
 
 func TestLoadMetricsData(t *testing.T) {
 	// Test loading metrics data from JSON file
-	metricsData, err := loadMetricsData("testdata/example-metrics.json")
+	metricsData, err := LoadMetricsData("../../testdata/example-metrics.json")
 	if err != nil {
 		t.Fatalf("Failed to load metrics data: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestLoadMetricsData(t *testing.T) {
 
 func TestLoadSiteInfo(t *testing.T) {
 	// Test loading site info from JSON file
-	siteInfo, err := loadSiteInfo("testdata/site-info.json")
+	siteInfo, err := LoadSiteInfo("../../testdata/site-info.json")
 	if err != nil {
 		t.Fatalf("Failed to load site info: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestLoadSiteInfo(t *testing.T) {
 
 func TestLoadSiteConfig(t *testing.T) {
 	// Test loading site config (old format for backwards compatibility)
-	config, err := loadSiteConfig("testdata/site-config.json")
+	config, err := LoadSiteConfig("../../testdata/site-config.json")
 	if err != nil {
 		t.Fatalf("Failed to load site config: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestLoadSiteConfig(t *testing.T) {
 
 func TestLoadMetricsDataError(t *testing.T) {
 	// Test error handling for non-existent file
-	_, err := loadMetricsData("testdata/nonexistent.json")
+	_, err := LoadMetricsData("../../testdata/nonexistent.json")
 	if err == nil {
 		t.Error("Expected error for non-existent file, got nil")
 	}
@@ -110,7 +110,7 @@ func TestLoadMetricsDataError(t *testing.T) {
 
 func TestLoadSiteInfoError(t *testing.T) {
 	// Test error handling for non-existent file
-	_, err := loadSiteInfo("testdata/nonexistent.json")
+	_, err := LoadSiteInfo("../../testdata/nonexistent.json")
 	if err == nil {
 		t.Error("Expected error for non-existent file, got nil")
 	}
@@ -118,7 +118,7 @@ func TestLoadSiteInfoError(t *testing.T) {
 
 func TestParseMetricsFromTerminus(t *testing.T) {
 	// Test parsing metrics from terminus command output
-	data, err := os.ReadFile("testdata/example-metrics.json")
+	data, err := os.ReadFile("../../testdata/example-metrics.json")
 	if err != nil {
 		t.Fatalf("Failed to read test data: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestParseMetricsFromTerminus(t *testing.T) {
 
 func TestParseSiteInfoFromTerminus(t *testing.T) {
 	// Test parsing site info from terminus command output
-	data, err := os.ReadFile("testdata/site-info.json")
+	data, err := os.ReadFile("../../testdata/site-info.json")
 	if err != nil {
 		t.Fatalf("Failed to read test data: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestParseSiteInfoFromTerminus(t *testing.T) {
 
 func TestLoadSiteList(t *testing.T) {
 	// Test loading site list from JSON file
-	siteList, err := loadSiteList("testdata/site-list.json")
+	siteList, err := LoadSiteList("../../testdata/site-list.json")
 	if err != nil {
 		t.Fatalf("Failed to load site list: %v", err)
 	}
@@ -207,7 +207,7 @@ func TestLoadSiteList(t *testing.T) {
 
 func TestParseSiteList(t *testing.T) {
 	// Test parsing site list from terminus command output
-	data, err := os.ReadFile("testdata/site-list.json")
+	data, err := os.ReadFile("../../testdata/site-list.json")
 	if err != nil {
 		t.Fatalf("Failed to read test data: %v", err)
 	}
@@ -225,7 +225,7 @@ func TestParseSiteList(t *testing.T) {
 func TestGetAccountID(t *testing.T) {
 	// Test with full-length token
 	token := "1234567890abcdef1234567890abcdef"
-	accountID := getAccountID(token)
+	accountID := GetAccountID(token)
 	expected := "90abcdef"
 	if accountID != expected {
 		t.Errorf("Expected account ID %s, got %s", expected, accountID)
@@ -233,7 +233,7 @@ func TestGetAccountID(t *testing.T) {
 
 	// Test with short token
 	shortToken := "abc"
-	accountID = getAccountID(shortToken)
+	accountID = GetAccountID(shortToken)
 	if accountID != shortToken {
 		t.Errorf("Expected account ID %s, got %s", shortToken, accountID)
 	}
@@ -283,7 +283,7 @@ func TestLoadMetricsDataInvalidJSON(t *testing.T) {
 	_ = tmpfile.Close()
 
 	// Try to load the invalid file
-	_, err = loadMetricsData(tmpfile.Name())
+	_, err = LoadMetricsData(tmpfile.Name())
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
@@ -306,7 +306,7 @@ func TestLoadSiteConfigInvalidJSON(t *testing.T) {
 	_ = tmpfile.Close()
 
 	// Try to load the invalid file
-	_, err = loadSiteConfig(tmpfile.Name())
+	_, err = LoadSiteConfig(tmpfile.Name())
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
@@ -329,7 +329,7 @@ func TestLoadSiteInfoInvalidJSON(t *testing.T) {
 	_ = tmpfile.Close()
 
 	// Try to load the invalid file
-	_, err = loadSiteInfo(tmpfile.Name())
+	_, err = LoadSiteInfo(tmpfile.Name())
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
@@ -352,7 +352,7 @@ func TestLoadSiteListInvalidJSON(t *testing.T) {
 	_ = tmpfile.Close()
 
 	// Try to load the invalid file
-	_, err = loadSiteList(tmpfile.Name())
+	_, err = LoadSiteList(tmpfile.Name())
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
@@ -360,7 +360,7 @@ func TestLoadSiteListInvalidJSON(t *testing.T) {
 
 func TestLoadSiteConfigError(t *testing.T) {
 	// Test error handling for non-existent file
-	_, err := loadSiteConfig("testdata/nonexistent.json")
+	_, err := LoadSiteConfig("../../testdata/nonexistent.json")
 	if err == nil {
 		t.Error("Expected error for non-existent file, got nil")
 	}
@@ -368,15 +368,15 @@ func TestLoadSiteConfigError(t *testing.T) {
 
 func TestLoadSiteListError(t *testing.T) {
 	// Test error handling for non-existent file
-	_, err := loadSiteList("testdata/nonexistent.json")
+	_, err := LoadSiteList("../../testdata/nonexistent.json")
 	if err == nil {
 		t.Error("Expected error for non-existent file, got nil")
 	}
 }
 
 func TestFetchSiteMetrics(t *testing.T) {
-	// Test fetchSiteMetrics - will fail without terminus but exercises the function
-	_, err := fetchSiteMetrics("testsite", "live")
+	// Test FetchSiteMetrics - will fail without terminus but exercises the function
+	_, err := FetchSiteMetrics("testsite", "live")
 	// Should get an error since terminus is not available
 	if err == nil {
 		t.Error("Expected error when terminus is not available, got nil")
@@ -384,8 +384,8 @@ func TestFetchSiteMetrics(t *testing.T) {
 }
 
 func TestFetchMetricsData(t *testing.T) {
-	// Test fetchMetricsData - will fail without terminus but exercises the function
-	_, err := fetchMetricsData("testsite", "live")
+	// Test FetchMetricsData - will fail without terminus but exercises the function
+	_, err := FetchMetricsData("testsite", "live")
 	// Should get an error since terminus is not available
 	if err == nil {
 		t.Error("Expected error when terminus is not available, got nil")
@@ -393,8 +393,8 @@ func TestFetchMetricsData(t *testing.T) {
 }
 
 func TestFetchSiteInfo(t *testing.T) {
-	// Test fetchSiteInfo - will fail without terminus but exercises the function
-	_, err := fetchSiteInfo("testsite")
+	// Test FetchSiteInfo - will fail without terminus but exercises the function
+	_, err := FetchSiteInfo("testsite")
 	// Should get an error since terminus is not available
 	if err == nil {
 		t.Error("Expected error when terminus is not available, got nil")
@@ -402,8 +402,8 @@ func TestFetchSiteInfo(t *testing.T) {
 }
 
 func TestFetchAllSites(t *testing.T) {
-	// Test fetchAllSites - will fail without terminus but exercises the function
-	_, err := fetchAllSites()
+	// Test FetchAllSites - will fail without terminus but exercises the function
+	_, err := FetchAllSites()
 	// Should get an error since terminus is not available
 	if err == nil {
 		t.Error("Expected error when terminus is not available, got nil")
@@ -411,8 +411,8 @@ func TestFetchAllSites(t *testing.T) {
 }
 
 func TestAuthenticateWithToken(t *testing.T) {
-	// Test authenticateWithToken - will fail without terminus but exercises the function
-	err := authenticateWithToken("test-token-12345678")
+	// Test AuthenticateWithToken - will fail without terminus but exercises the function
+	err := AuthenticateWithToken("test-token-12345678")
 	// Should get an error since terminus is not available
 	if err == nil {
 		t.Error("Expected error when terminus is not available, got nil")
@@ -431,7 +431,7 @@ func TestExecuteTerminusCommand(t *testing.T) {
 func TestGetAccountIDExact8Chars(t *testing.T) {
 	// Test with exactly 8 character token
 	token := "12345678"
-	accountID := getAccountID(token)
+	accountID := GetAccountID(token)
 	if accountID != "12345678" {
 		t.Errorf("Expected account ID %s, got %s", "12345678", accountID)
 	}
@@ -440,7 +440,7 @@ func TestGetAccountIDExact8Chars(t *testing.T) {
 func TestGetAccountIDEmpty(t *testing.T) {
 	// Test with empty token
 	token := ""
-	accountID := getAccountID(token)
+	accountID := GetAccountID(token)
 	if accountID != "" {
 		t.Errorf("Expected empty account ID, got %s", accountID)
 	}
