@@ -68,48 +68,45 @@ jobs:
           args: --timeout=5m
 
   build:
-    name: Build (${{ matrix.platform }})
+    name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
     runs-on: ubuntu-24.04
     strategy:
       matrix:
         include:
-          - platform: linux
-            targets: |
-              GOOS=linux GOARCH=amd64 go build -o bin/pantheon-metrics-prometheus-linux-amd64 ./cmd/pantheon-metrics-exporter
-              GOOS=linux GOARCH=arm64 go build -o bin/pantheon-metrics-prometheus-linux-arm64 ./cmd/pantheon-metrics-exporter
-          - platform: macos
-            targets: |
-              GOOS=darwin GOARCH=amd64 go build -o bin/pantheon-metrics-prometheus-darwin-amd64 ./cmd/pantheon-metrics-exporter
-              GOOS=darwin GOARCH=arm64 go build -o bin/pantheon-metrics-prometheus-darwin-arm64 ./cmd/pantheon-metrics-exporter
-          - platform: windows
-            targets: |
-              GOOS=windows GOARCH=amd64 go build -o bin/pantheon-metrics-prometheus-windows-amd64.exe ./cmd/pantheon-metrics-exporter
-              GOOS=windows GOARCH=arm64 go build -o bin/pantheon-metrics-prometheus-windows-arm64.exe ./cmd/pantheon-metrics-exporter
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
         with:
           go-version: '1.24.7'
 
-      - name: Cache Go modules
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5
+      - name: Build snapshot
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
         with:
-          path: ~/go/pkg/mod
-          key: ${{ matrix.platform }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ matrix.platform }}-go-
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Build for ${{ matrix.platform }}
-        run: ${{ matrix.targets }}
+          version: '~> v2'
+          args: build --snapshot --single-target --clean
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: binaries-${{ matrix.platform }}
-          path: bin/
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/
