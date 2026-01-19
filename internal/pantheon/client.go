@@ -48,7 +48,9 @@ func (c *Client) GetEmail(ctx context.Context, machineToken string) (string, err
 	return c.sessionManager.GetEmail(ctx, machineToken)
 }
 
-// FetchAllSites fetches the list of all sites for the authenticated user.
+// FetchAllSites fetches all sites accessible to the user, including:
+// 1. Sites from direct user memberships
+// 2. Sites from all organizations the user is a member of
 func (c *Client) FetchAllSites(ctx context.Context, machineToken string) (map[string]SiteListEntry, error) {
 	log.Printf("Fetching all sites from Pantheon API...")
 
@@ -58,12 +60,63 @@ func (c *Client) FetchAllSites(ctx context.Context, machineToken string) (map[st
 	}
 
 	sitesService := api.NewSitesService(session.Client)
-	sites, err := sitesService.List(ctx, session.UserID)
+	orgsService := api.NewOrganizationsService(session.Client)
+
+	// Track unique sites by ID to avoid duplicates
+	siteMap := make(map[string]SiteListEntry)
+
+	// 1. Get sites from direct user memberships
+	userSites, err := sitesService.List(ctx, session.UserID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list sites: %w", err)
+		return nil, fmt.Errorf("failed to list user sites: %w", err)
+	}
+	for _, site := range userSites {
+		siteMap[site.ID] = ConvertSite(site)
+	}
+	log.Printf("Found %d sites from direct user memberships", len(userSites))
+
+	// 2. Get user's organization memberships
+	orgs, err := orgsService.List(ctx, session.UserID)
+	if err != nil {
+		// Log warning but continue - user sites were already fetched
+		log.Printf("Warning: failed to list user organizations: %v", err)
+	} else {
+		log.Printf("Found %d organizations", len(orgs))
+
+		// 3. For each organization, get all sites
+		for _, org := range orgs {
+			orgSites, err := sitesService.ListByOrganization(ctx, org.ID)
+			if err != nil {
+				// Continue on error to get sites from other orgs
+				orgName := org.ID
+				if org.Label != "" {
+					orgName = org.Label
+				}
+				log.Printf("Warning: failed to list sites for organization %s: %v", orgName, err)
+				continue
+			}
+
+			// Add org sites to the map (deduplicating by ID)
+			// Don't overwrite if site already exists (to preserve direct team membership info)
+			orgSiteCount := 0
+			for _, site := range orgSites {
+				if _, exists := siteMap[site.ID]; !exists {
+					siteMap[site.ID] = ConvertSite(site)
+					orgSiteCount++
+				}
+			}
+			if orgSiteCount > 0 {
+				orgName := org.ID
+				if org.Label != "" {
+					orgName = org.Label
+				}
+				log.Printf("Found %d additional sites from organization %s", orgSiteCount, orgName)
+			}
+		}
 	}
 
-	return ConvertSitesToMap(sites), nil
+	log.Printf("Total unique sites found: %d", len(siteMap))
+	return siteMap, nil
 }
 
 // FetchMetricsData fetches metrics data for a site.
