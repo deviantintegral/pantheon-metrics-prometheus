@@ -425,7 +425,7 @@ func TestFetchAllSitesInvalidToken(t *testing.T) {
 	ctx := context.Background()
 
 	// This should fail authentication and return an error
-	_, err := client.FetchAllSites(ctx, "invalid-token")
+	_, err := client.FetchAllSites(ctx, "invalid-token", "")
 
 	// We expect an error because authentication will fail
 	if err == nil {
@@ -477,5 +477,61 @@ func TestGetEmailInvalidToken(t *testing.T) {
 	// We expect an error because authentication will fail
 	if err == nil {
 		t.Skip("Unexpectedly succeeded (network may have responded)")
+	}
+}
+
+func TestFetchAllSitesWithOrgIDInvalidToken(t *testing.T) {
+	// Test that FetchAllSites with orgID handles authentication failure gracefully
+	client := NewClient(false)
+	ctx := context.Background()
+
+	// This should fail authentication and return an error
+	_, err := client.FetchAllSites(ctx, "invalid-token", "some-org-id")
+
+	// We expect an error because authentication will fail
+	if err == nil {
+		t.Skip("Unexpectedly succeeded (network may have responded)")
+	}
+
+	// The error should mention session or authentication
+	if err != nil && !strings.Contains(err.Error(), "session") && !strings.Contains(err.Error(), "auth") {
+		t.Logf("Error message: %v", err)
+	}
+}
+
+func TestGetOrgDisplayName(t *testing.T) {
+	tests := []struct {
+		name     string
+		orgID    string
+		orgLabel string
+		expected string
+	}{
+		{
+			name:     "with label",
+			orgID:    "org-uuid-123",
+			orgLabel: "My Organization",
+			expected: "My Organization",
+		},
+		{
+			name:     "without label",
+			orgID:    "org-uuid-123",
+			orgLabel: "",
+			expected: "org-uuid-123",
+		},
+		{
+			name:     "empty both",
+			orgID:    "",
+			orgLabel: "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getOrgDisplayName(tt.orgID, tt.orgLabel)
+			if result != tt.expected {
+				t.Errorf("getOrgDisplayName(%q, %q) = %q, want %q", tt.orgID, tt.orgLabel, result, tt.expected)
+			}
+		})
 	}
 }

@@ -30,10 +30,11 @@ type Manager struct {
 	tickerInterval  time.Duration     // Interval for metrics refresh ticker (defaults to 1 minute)
 	tickerFireCount int64             // Counter for ticker fires (for testing)
 	siteLimit       int               // Maximum number of sites to query (0 = no limit)
+	orgID           string            // Organization ID to filter sites (empty for all sites)
 }
 
 // NewManager creates a new refresh manager
-func NewManager(client *pantheon.Client, tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector, siteLimit int) *Manager {
+func NewManager(client *pantheon.Client, tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector, siteLimit int, orgID string) *Manager {
 	return &Manager{
 		client:          client,
 		tokens:          tokens,
@@ -44,6 +45,7 @@ func NewManager(client *pantheon.Client, tokens []string, environment string, re
 		accountTokenMap: make(map[string]string),
 		tickerInterval:  1 * time.Minute, // Default to 1 minute
 		siteLimit:       siteLimit,
+		orgID:           orgID,
 	}
 }
 
@@ -162,8 +164,8 @@ func (rm *Manager) refreshAllSiteLists() {
 
 		log.Printf("Refreshing site list for account %s", accountID)
 
-		// Fetch all sites for this account
-		siteList, err := rm.client.FetchAllSites(ctx, token)
+		// Fetch all sites for this account (filtered by orgID if provided)
+		siteList, err := rm.client.FetchAllSites(ctx, token, rm.orgID)
 		if err != nil {
 			log.Printf("Warning: Failed to fetch site list for account %s during refresh: %v", accountID, err)
 			continue

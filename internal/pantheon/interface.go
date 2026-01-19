@@ -13,7 +13,8 @@ type ClientInterface interface {
 	GetEmail(ctx context.Context, machineToken string) (string, error)
 
 	// FetchAllSites fetches the list of all sites for the authenticated user.
-	FetchAllSites(ctx context.Context, machineToken string) (map[string]SiteListEntry, error)
+	// If orgID is non-empty, only sites from that organization will be returned.
+	FetchAllSites(ctx context.Context, machineToken string, orgID string) (map[string]SiteListEntry, error)
 
 	// FetchMetricsData fetches metrics data for a site.
 	FetchMetricsData(ctx context.Context, machineToken, siteID, environment, duration string) (map[string]MetricData, error)
