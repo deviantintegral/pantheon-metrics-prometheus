@@ -45,7 +45,7 @@ func main() {
 
 	// Collect site lists first (fast - no metrics)
 	log.Printf("Loading site lists...")
-	allSites := app.CollectAllSiteLists(ctx, client, tokens, *siteLimit)
+	allSites, preFetchedSites := app.CollectAllSiteLists(ctx, client, tokens, *siteLimit)
 
 	// Create collector with sites (empty metrics initially)
 	pantheonCollector := collector.NewPantheonCollector(allSites)
@@ -63,10 +63,10 @@ func main() {
 	refreshManager.InitializeDiscoveredSites()
 	log.Printf("Refresh manager started (interval: %d minutes)", *refreshInterval)
 
-	// Collect initial metrics in background goroutine
+	// Collect initial metrics in background goroutine (using pre-fetched site lists)
 	go func() {
 		log.Printf("Starting initial metrics collection in background...")
-		allSiteMetrics := app.CollectAllMetrics(ctx, client, tokens, *environment, *siteLimit)
+		allSiteMetrics := app.CollectAllMetricsWithSites(ctx, client, tokens, *environment, preFetchedSites, *siteLimit)
 
 		if len(allSiteMetrics) > 0 {
 			log.Printf("Initial metrics collection complete: %d sites with metrics", len(allSiteMetrics))
