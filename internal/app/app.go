@@ -31,12 +31,19 @@ func createSiteMetrics(siteName, siteID, accountID, planName string, metricsData
 }
 
 // processAccountSiteList processes a list of sites for an account and collects metrics
-func processAccountSiteList(ctx context.Context, client *pantheon.Client, token, accountID, environment string, siteList map[string]pantheon.SiteListEntry) ([]pantheon.SiteMetrics, int, int) {
+// siteLimit and currentCount are used to limit the total number of sites processed globally.
+func processAccountSiteList(ctx context.Context, client *pantheon.Client, token, accountID, environment string, siteList map[string]pantheon.SiteListEntry, siteLimit, currentCount int) ([]pantheon.SiteMetrics, int, int) {
 	siteMetrics := make([]pantheon.SiteMetrics, 0, len(siteList))
 	successCount := 0
 	failCount := 0
 
 	for siteID, site := range siteList {
+		// Check if we've reached the global site limit
+		if siteLimit > 0 && (currentCount+len(siteMetrics)) >= siteLimit {
+			log.Printf("Site limit reached (%d sites), stopping metrics collection", siteLimit)
+			break
+		}
+
 		log.Printf("Account %s: Processing site %s (plan: %s)", accountID, site.Name, site.PlanName)
 
 		// Fetch metrics for this site (use 28d for initial fetch)
@@ -58,7 +65,8 @@ func processAccountSiteList(ctx context.Context, client *pantheon.Client, token,
 }
 
 // collectAccountMetrics collects metrics for a single account
-func collectAccountMetrics(ctx context.Context, client *pantheon.Client, token, environment string) ([]pantheon.SiteMetrics, int, int) {
+// siteLimit and currentCount are used to limit the total number of sites processed globally.
+func collectAccountMetrics(ctx context.Context, client *pantheon.Client, token, environment string, siteLimit, currentCount int) ([]pantheon.SiteMetrics, int, int) {
 	var siteMetrics []pantheon.SiteMetrics
 	successCount := 0
 	failCount := 0
@@ -82,14 +90,15 @@ func collectAccountMetrics(ctx context.Context, client *pantheon.Client, token, 
 	log.Printf("Account %s: Found %d sites", accountID, len(siteList))
 
 	// Process all sites
-	siteMetrics, successCount, failCount = processAccountSiteList(ctx, client, token, accountID, environment, siteList)
+	siteMetrics, successCount, failCount = processAccountSiteList(ctx, client, token, accountID, environment, siteList, siteLimit, currentCount)
 
 	log.Printf("Account %s: Metrics collection complete: %d successful, %d failed", accountID, successCount, failCount)
 	return siteMetrics, successCount, failCount
 }
 
 // CollectAllSiteLists collects site lists for all accounts without fetching metrics
-func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []string) []pantheon.SiteMetrics {
+// If siteLimit > 0, only the first siteLimit sites are returned.
+func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []string, siteLimit int) []pantheon.SiteMetrics {
 	var allSiteMetrics []pantheon.SiteMetrics
 
 	for tokenIdx, token := range tokens {
@@ -124,6 +133,17 @@ func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []
 				MetricsData: make(map[string]pantheon.MetricData),
 			}
 			allSiteMetrics = append(allSiteMetrics, siteMetrics)
+
+			// Apply site limit if set
+			if siteLimit > 0 && len(allSiteMetrics) >= siteLimit {
+				log.Printf("Site limit reached (%d sites), stopping collection", siteLimit)
+				break
+			}
+		}
+
+		// Check if limit reached after processing account
+		if siteLimit > 0 && len(allSiteMetrics) >= siteLimit {
+			break
 		}
 	}
 
@@ -132,7 +152,8 @@ func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []
 }
 
 // CollectAllMetrics collects metrics for all accounts
-func CollectAllMetrics(ctx context.Context, client *pantheon.Client, tokens []string, environment string) []pantheon.SiteMetrics {
+// If siteLimit > 0, only the first siteLimit sites are processed.
+func CollectAllMetrics(ctx context.Context, client *pantheon.Client, tokens []string, environment string, siteLimit int) []pantheon.SiteMetrics {
 	var allSiteMetrics []pantheon.SiteMetrics
 	totalSuccessCount := 0
 	totalFailCount := 0
@@ -140,10 +161,15 @@ func CollectAllMetrics(ctx context.Context, client *pantheon.Client, tokens []st
 	for tokenIdx, token := range tokens {
 		log.Printf("Processing account %d/%d", tokenIdx+1, len(tokens))
 
-		siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment)
+		siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment, siteLimit, len(allSiteMetrics))
 		allSiteMetrics = append(allSiteMetrics, siteMetrics...)
 		totalSuccessCount += successCount
 		totalFailCount += failCount
+
+		// Check if limit reached after processing account
+		if siteLimit > 0 && len(allSiteMetrics) >= siteLimit {
+			break
+		}
 	}
 
 	log.Printf("Overall metrics collection complete: %d successful, %d failed across %d accounts", totalSuccessCount, totalFailCount, len(tokens))
@@ -191,8 +217,8 @@ func SetupHTTPHandlers(registry *prometheus.Registry, environment string, tokens
 }
 
 // StartRefreshManager creates and starts the refresh manager
-func StartRefreshManager(client *pantheon.Client, tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector) *refresh.Manager {
-	refreshManager := refresh.NewManager(client, tokens, environment, refreshInterval, c)
+func StartRefreshManager(client *pantheon.Client, tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector, siteLimit int) *refresh.Manager {
+	refreshManager := refresh.NewManager(client, tokens, environment, refreshInterval, c, siteLimit)
 	refreshManager.Start()
 	return refreshManager
 }

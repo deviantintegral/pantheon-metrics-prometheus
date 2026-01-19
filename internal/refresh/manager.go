@@ -29,10 +29,11 @@ type Manager struct {
 	accountTokenMap map[string]string // Map from account email to token
 	tickerInterval  time.Duration     // Interval for metrics refresh ticker (defaults to 1 minute)
 	tickerFireCount int64             // Counter for ticker fires (for testing)
+	siteLimit       int               // Maximum number of sites to query (0 = no limit)
 }
 
 // NewManager creates a new refresh manager
-func NewManager(client *pantheon.Client, tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector) *Manager {
+func NewManager(client *pantheon.Client, tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector, siteLimit int) *Manager {
 	return &Manager{
 		client:          client,
 		tokens:          tokens,
@@ -42,6 +43,7 @@ func NewManager(client *pantheon.Client, tokens []string, environment string, re
 		discoveredSites: make(map[string]bool),
 		accountTokenMap: make(map[string]string),
 		tickerInterval:  1 * time.Minute, // Default to 1 minute
+		siteLimit:       siteLimit,
 	}
 }
 
@@ -133,7 +135,19 @@ func (rm *Manager) refreshAllSiteLists() {
 	newSitesMap := make(map[string]bool)
 	totalSitesFound := 0
 
+	// Get existing metrics for sites (do this once outside the loop)
+	existingMetricsMap := make(map[string]map[string]pantheon.MetricData)
+	for _, site := range existingSites {
+		key := site.Account + ":" + site.SiteName
+		existingMetricsMap[key] = site.MetricsData
+	}
+
 	for _, token := range rm.tokens {
+		// Check if we've reached the site limit
+		if rm.siteLimit > 0 && len(allSiteMetrics) >= rm.siteLimit {
+			break
+		}
+
 		// Authenticate with this token
 		accountID, err := rm.client.Authenticate(ctx, token)
 		if err != nil {
@@ -157,17 +171,14 @@ func (rm *Manager) refreshAllSiteLists() {
 
 		totalSitesFound += len(siteList)
 
-		// Get existing metrics for sites
-		existingMetricsMap := make(map[string]map[string]pantheon.MetricData)
-		existingSiteIDMap := make(map[string]string)
-		for _, site := range existingSites {
-			key := site.Account + ":" + site.SiteName
-			existingMetricsMap[key] = site.MetricsData
-			existingSiteIDMap[key] = site.SiteID
-		}
-
 		// Create site metrics entries, preserving existing metrics data
 		for siteID, site := range siteList {
+			// Check if we've reached the site limit
+			if rm.siteLimit > 0 && len(allSiteMetrics) >= rm.siteLimit {
+				log.Printf("Site limit reached (%d sites), stopping refresh", rm.siteLimit)
+				break
+			}
+
 			key := accountID + ":" + site.Name
 			newSitesMap[key] = true
 
