@@ -525,7 +525,8 @@ func TestCollectWithEmptyMetricsData(t *testing.T) {
 }
 
 func TestCollectWithNoDataCacheHitRatio(t *testing.T) {
-	// Test Collect with cache hit ratio "--" (no data indicator from Pantheon API)
+	// Test Collect with cache hit ratio "--" (terminus-golang uses this when pages_served is 0,
+	// matching Terminus CLI behavior; Pantheon API doesn't return cache_hit_ratio directly)
 	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
@@ -533,7 +534,7 @@ func TestCollectWithNoDataCacheHitRatio(t *testing.T) {
 			PagesServed:   0,
 			CacheHits:     0,
 			CacheMisses:   0,
-			CacheHitRatio: "--", // No data indicator
+			CacheHitRatio: "--", // No data indicator from terminus-golang
 		},
 	}
 

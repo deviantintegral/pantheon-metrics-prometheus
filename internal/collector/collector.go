@@ -86,7 +86,9 @@ func (c *PantheonCollector) Collect(ch chan<- prometheus.Metric) {
 			ts := time.Unix(timestamp, 0)
 
 			// Parse cache hit ratio (remove % sign and convert to float)
-			// Handle "--" as a special "no data" indicator from Pantheon API
+			// Handle "--" as a special "no data" indicator from terminus-golang
+			// (Pantheon API doesn't return cache_hit_ratio; it's calculated by the library,
+			// which uses "--" when pages_served is 0, matching Terminus CLI behavior)
 			var cacheHitRatioVal float64
 			if data.CacheHitRatio == "--" {
 				cacheHitRatioVal = 0
