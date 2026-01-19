@@ -86,11 +86,18 @@ func (c *PantheonCollector) Collect(ch chan<- prometheus.Metric) {
 			ts := time.Unix(timestamp, 0)
 
 			// Parse cache hit ratio (remove % sign and convert to float)
-			cacheHitRatioStr := strings.TrimSuffix(data.CacheHitRatio, "%")
-			cacheHitRatioVal, err := strconv.ParseFloat(cacheHitRatioStr, 64)
-			if err != nil {
-				log.Printf("Error parsing cache hit ratio %s: %v", data.CacheHitRatio, err)
+			// Handle "--" as a special "no data" indicator from Pantheon API
+			var cacheHitRatioVal float64
+			if data.CacheHitRatio == "--" {
 				cacheHitRatioVal = 0
+			} else {
+				cacheHitRatioStr := strings.TrimSuffix(data.CacheHitRatio, "%")
+				var err error
+				cacheHitRatioVal, err = strconv.ParseFloat(cacheHitRatioStr, 64)
+				if err != nil {
+					log.Printf("Error parsing cache hit ratio %s: %v", data.CacheHitRatio, err)
+					cacheHitRatioVal = 0
+				}
 			}
 
 			// Create metrics with labels and timestamps
