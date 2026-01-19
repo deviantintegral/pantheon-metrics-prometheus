@@ -22,6 +22,7 @@ func main() {
 	port := flag.String("port", "8080", "HTTP server port (default: 8080)")
 	refreshInterval := flag.Int("refreshInterval", 60, "Refresh interval in minutes (default: 60)")
 	debug := flag.Bool("debug", false, "Enable debug logging of HTTP requests and responses to stderr")
+	siteLimit := flag.Int("siteLimit", 0, "Maximum number of sites to query (0 = no limit)")
 	flag.Parse()
 
 	// Read machine tokens from environment variable
@@ -44,7 +45,7 @@ func main() {
 
 	// Collect site lists first (fast - no metrics)
 	log.Printf("Loading site lists...")
-	allSites := app.CollectAllSiteLists(ctx, client, tokens)
+	allSites := app.CollectAllSiteLists(ctx, client, tokens, *siteLimit)
 
 	// Create collector with sites (empty metrics initially)
 	pantheonCollector := collector.NewPantheonCollector(allSites)
@@ -58,14 +59,14 @@ func main() {
 
 	// Start refresh manager
 	refreshIntervalDuration := time.Duration(*refreshInterval) * time.Minute
-	refreshManager := app.StartRefreshManager(client, tokens, *environment, refreshIntervalDuration, pantheonCollector)
+	refreshManager := app.StartRefreshManager(client, tokens, *environment, refreshIntervalDuration, pantheonCollector, *siteLimit)
 	refreshManager.InitializeDiscoveredSites()
 	log.Printf("Refresh manager started (interval: %d minutes)", *refreshInterval)
 
 	// Collect initial metrics in background goroutine
 	go func() {
 		log.Printf("Starting initial metrics collection in background...")
-		allSiteMetrics := app.CollectAllMetrics(ctx, client, tokens, *environment)
+		allSiteMetrics := app.CollectAllMetrics(ctx, client, tokens, *environment, *siteLimit)
 
 		if len(allSiteMetrics) > 0 {
 			log.Printf("Initial metrics collection complete: %d sites with metrics", len(allSiteMetrics))

@@ -256,7 +256,7 @@ func TestStartRefreshManager(t *testing.T) {
 	c := collector.NewPantheonCollector([]pantheon.SiteMetrics{})
 
 	// This should not panic and should return a manager
-	manager := StartRefreshManager(client, tokens, environment, refreshInterval, c)
+	manager := StartRefreshManager(client, tokens, environment, refreshInterval, c, 0)
 
 	if manager == nil {
 		t.Error("Expected refresh manager to be created, got nil")
@@ -276,7 +276,7 @@ func TestCollectAllSiteListsEmptyTokens(t *testing.T) {
 	ctx := context.Background()
 	tokens := []string{}
 
-	result := CollectAllSiteLists(ctx, client, tokens)
+	result := CollectAllSiteLists(ctx, client, tokens, 0)
 
 	if len(result) != 0 {
 		t.Errorf("Expected 0 sites with empty tokens, got %d", len(result))
@@ -291,7 +291,7 @@ func TestCollectAllSiteListsInvalidTokens(t *testing.T) {
 	tokens := []string{"invalid-token-1", "invalid-token-2"}
 
 	// This should complete without panic, handling auth failures gracefully
-	result := CollectAllSiteLists(ctx, client, tokens)
+	result := CollectAllSiteLists(ctx, client, tokens, 0)
 
 	// With invalid tokens, we expect 0 sites (auth will fail for all)
 	if len(result) != 0 {
@@ -306,7 +306,7 @@ func TestCollectAllMetricsEmptyTokens(t *testing.T) {
 	tokens := []string{}
 	environment := testEnvLive
 
-	result := CollectAllMetrics(ctx, client, tokens, environment)
+	result := CollectAllMetrics(ctx, client, tokens, environment, 0)
 
 	if len(result) != 0 {
 		t.Errorf("Expected 0 sites with empty tokens, got %d", len(result))
@@ -322,7 +322,7 @@ func TestCollectAllMetricsInvalidTokens(t *testing.T) {
 	environment := testEnvLive
 
 	// This should complete without panic, handling auth failures gracefully
-	result := CollectAllMetrics(ctx, client, tokens, environment)
+	result := CollectAllMetrics(ctx, client, tokens, environment, 0)
 
 	// With invalid tokens, we expect 0 sites
 	if len(result) != 0 {
@@ -339,7 +339,7 @@ func TestProcessAccountSiteListEmpty(t *testing.T) {
 	environment := testEnvLive
 	siteList := map[string]pantheon.SiteListEntry{}
 
-	siteMetrics, successCount, failCount := processAccountSiteList(ctx, client, token, accountID, environment, siteList)
+	siteMetrics, successCount, failCount := processAccountSiteList(ctx, client, token, accountID, environment, siteList, 0, 0)
 
 	if len(siteMetrics) != 0 {
 		t.Errorf("Expected 0 site metrics with empty site list, got %d", len(siteMetrics))
@@ -374,7 +374,7 @@ func TestProcessAccountSiteListWithSites(t *testing.T) {
 	}
 
 	// This will fail to fetch metrics (invalid token) but should not panic
-	siteMetrics, successCount, failCount := processAccountSiteList(ctx, client, token, accountID, environment, siteList)
+	siteMetrics, successCount, failCount := processAccountSiteList(ctx, client, token, accountID, environment, siteList, 0, 0)
 
 	// Expect 0 successful, 2 failed (can't fetch metrics with invalid token)
 	if len(siteMetrics) != 0 {
@@ -396,7 +396,7 @@ func TestCollectAccountMetricsInvalidToken(t *testing.T) {
 	environment := testEnvLive
 
 	// This should complete without panic, handling auth failure gracefully
-	siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment)
+	siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment, 0, 0)
 
 	// With invalid token, we expect 0 metrics (auth will fail)
 	if len(siteMetrics) != 0 {
