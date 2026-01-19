@@ -21,6 +21,7 @@ func main() {
 	environment := flag.String("env", "live", "Pantheon environment (default: live)")
 	port := flag.String("port", "8080", "HTTP server port (default: 8080)")
 	refreshInterval := flag.Int("refreshInterval", 60, "Refresh interval in minutes (default: 60)")
+	debug := flag.Bool("debug", false, "Enable debug logging of HTTP requests and responses to stderr")
 	flag.Parse()
 
 	// Read machine tokens from environment variable
@@ -37,8 +38,8 @@ func main() {
 
 	log.Printf("Found %d Pantheon account(s) to process", len(tokens))
 
-	// Create the Pantheon API client
-	client := pantheon.NewClient()
+	// Create the Pantheon API client with debug logging if enabled
+	client := pantheon.NewClient(*debug)
 	ctx := context.Background()
 
 	// Collect site lists first (fast - no metrics)

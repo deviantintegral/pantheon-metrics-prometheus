@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewSessionManager(t *testing.T) {
-	sm := NewSessionManager()
+	sm := NewSessionManager(false)
 	if sm == nil {
 		t.Fatal("Expected non-nil session manager")
 	}
@@ -21,7 +21,7 @@ func TestNewSessionManager(t *testing.T) {
 }
 
 func TestInvalidateSession(t *testing.T) {
-	sm := NewSessionManager()
+	sm := NewSessionManager(false)
 
 	// Pre-populate a session
 	testToken := "test-machine-token"
@@ -48,7 +48,7 @@ func TestInvalidateSession(t *testing.T) {
 }
 
 func TestInvalidateSessionNonExistent(t *testing.T) {
-	sm := NewSessionManager()
+	sm := NewSessionManager(false)
 
 	// This should not panic
 	sm.InvalidateSession("non-existent-token")
@@ -59,7 +59,7 @@ func TestInvalidateSessionNonExistent(t *testing.T) {
 }
 
 func TestGetSessionReturnsExisting(t *testing.T) {
-	sm := NewSessionManager()
+	sm := NewSessionManager(false)
 
 	// Pre-populate a session
 	testToken := "existing-token"
@@ -89,7 +89,7 @@ func TestGetSessionReturnsExisting(t *testing.T) {
 }
 
 func TestGetClientFromExistingSession(t *testing.T) {
-	sm := NewSessionManager()
+	sm := NewSessionManager(false)
 
 	// Pre-populate a session with a client
 	testToken := "client-token"
@@ -115,7 +115,7 @@ func TestGetClientFromExistingSession(t *testing.T) {
 }
 
 func TestGetUserIDFromExistingSession(t *testing.T) {
-	sm := NewSessionManager()
+	sm := NewSessionManager(false)
 
 	// Pre-populate a session
 	testToken := "userid-token"
@@ -141,7 +141,7 @@ func TestGetUserIDFromExistingSession(t *testing.T) {
 }
 
 func TestGetEmailFromExistingSession(t *testing.T) {
-	sm := NewSessionManager()
+	sm := NewSessionManager(false)
 
 	// Pre-populate a session
 	testToken := "email-token"
@@ -167,7 +167,7 @@ func TestGetEmailFromExistingSession(t *testing.T) {
 }
 
 func TestSessionManagerConcurrentAccess(t *testing.T) {
-	sm := NewSessionManager()
+	sm := NewSessionManager(false)
 
 	// Pre-populate sessions
 	for i := 0; i < 10; i++ {
@@ -234,7 +234,7 @@ func TestSessionStruct(t *testing.T) {
 }
 
 func TestGetSessionWithNilClient(t *testing.T) {
-	sm := NewSessionManager()
+	sm := NewSessionManager(false)
 
 	// Pre-populate a session with nil client
 	testToken := "nil-client-token"
@@ -258,7 +258,7 @@ func TestGetSessionWithNilClient(t *testing.T) {
 }
 
 func TestMultipleInvalidateSessions(t *testing.T) {
-	sm := NewSessionManager()
+	sm := NewSessionManager(false)
 
 	// Add multiple sessions
 	for i := 0; i < 5; i++ {
