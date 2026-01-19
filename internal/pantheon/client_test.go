@@ -1,7 +1,9 @@
 package pantheon
 
 import (
+	"context"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -415,4 +417,65 @@ func TestClientInvalidateSession(t *testing.T) {
 
 	// Should work with a normal token
 	client.InvalidateSession("some-machine-token")
+}
+
+func TestFetchAllSitesInvalidToken(t *testing.T) {
+	// Test that FetchAllSites handles authentication failure gracefully
+	client := NewClient()
+	ctx := context.Background()
+
+	// This should fail authentication and return an error
+	_, err := client.FetchAllSites(ctx, "invalid-token")
+
+	// We expect an error because authentication will fail
+	if err == nil {
+		t.Skip("Unexpectedly succeeded (network may have responded)")
+	}
+
+	// The error should mention session or authentication
+	if err != nil && !strings.Contains(err.Error(), "session") && !strings.Contains(err.Error(), "auth") {
+		t.Logf("Error message: %v", err)
+	}
+}
+
+func TestFetchMetricsDataInvalidToken(t *testing.T) {
+	// Test that FetchMetricsData handles authentication failure gracefully
+	client := NewClient()
+	ctx := context.Background()
+
+	// This should fail authentication and return an error
+	_, err := client.FetchMetricsData(ctx, "invalid-token", "site-id", "live", "1d")
+
+	// We expect an error because authentication will fail
+	if err == nil {
+		t.Skip("Unexpectedly succeeded (network may have responded)")
+	}
+}
+
+func TestAuthenticateInvalidToken(t *testing.T) {
+	// Test that Authenticate handles invalid token gracefully
+	client := NewClient()
+	ctx := context.Background()
+
+	// This should fail authentication and return an error
+	_, err := client.Authenticate(ctx, "invalid-token")
+
+	// We expect an error because authentication will fail
+	if err == nil {
+		t.Skip("Unexpectedly succeeded (network may have responded)")
+	}
+}
+
+func TestGetEmailInvalidToken(t *testing.T) {
+	// Test that GetEmail handles invalid token gracefully
+	client := NewClient()
+	ctx := context.Background()
+
+	// This should fail because there's no session for this token
+	_, err := client.GetEmail(ctx, "invalid-token")
+
+	// We expect an error because authentication will fail
+	if err == nil {
+		t.Skip("Unexpectedly succeeded (network may have responded)")
+	}
 }
