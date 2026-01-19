@@ -524,6 +524,48 @@ func TestCollectWithEmptyMetricsData(t *testing.T) {
 	}
 }
 
+func TestCollectWithNoDataCacheHitRatio(t *testing.T) {
+	// Test Collect with cache hit ratio "--" (terminus-golang uses this when pages_served is 0,
+	// matching Terminus CLI behavior; Pantheon API doesn't return cache_hit_ratio directly)
+	metricsData := map[string]pantheon.MetricData{
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
+			Visits:        0,
+			PagesServed:   0,
+			CacheHits:     0,
+			CacheMisses:   0,
+			CacheHitRatio: "--", // No data indicator from terminus-golang
+		},
+	}
+
+	sites := []pantheon.SiteMetrics{
+		{
+			SiteName:    testCollectorSite1,
+			Label:       "Site 1",
+			PlanName:    "Basic",
+			Account:     "account1",
+			MetricsData: metricsData,
+		},
+	}
+
+	collector := NewPantheonCollector(sites)
+
+	ch := make(chan prometheus.Metric, 10)
+	collector.Collect(ch)
+	close(ch)
+
+	// Should still collect metrics with cache hit ratio defaulting to 0
+	count := 0
+	for range ch {
+		count++
+	}
+
+	// Should have 5 metrics (one for each metric type)
+	if count != 5 {
+		t.Errorf("Expected 5 metrics, got %d", count)
+	}
+}
+
 func TestCollectWithNoCacheHitRatioPercentSign(t *testing.T) {
 	// Test Collect with cache hit ratio that has no % sign
 	metricsData := map[string]pantheon.MetricData{
