@@ -21,6 +21,10 @@ pre-commit run --all-files
 - Running them at the start of a session ensures any uncommitted changes are validated
 - Fixes should be applied immediately before continuing work
 
+### Git Commit Rules
+
+**NEVER** use `git commit --no-verify`. This flag bypasses pre-commit hooks and must not be used under any circumstances. If pre-commit hooks fail, fix the underlying issues instead of skipping the checks.
+
 ### Workflow
 
 1. Start new session
