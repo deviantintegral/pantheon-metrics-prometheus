@@ -18,6 +18,12 @@ import (
 // InitialMetricsDuration is used for the first metrics fetch (28 days of history).
 const InitialMetricsDuration = "28d"
 
+// AccountSiteData holds pre-fetched site data for an account
+type AccountSiteData struct {
+	AccountID string
+	Sites     map[string]pantheon.SiteListEntry
+}
+
 // createSiteMetrics creates a SiteMetrics struct from site list entry and metrics data
 func createSiteMetrics(siteName, siteID, accountID, planName string, metricsData map[string]pantheon.MetricData) pantheon.SiteMetrics {
 	return pantheon.SiteMetrics{
@@ -96,10 +102,12 @@ func collectAccountMetrics(ctx context.Context, client *pantheon.Client, token, 
 	return siteMetrics, successCount, failCount
 }
 
-// CollectAllSiteLists collects site lists for all accounts without fetching metrics
+// CollectAllSiteLists collects site lists for all accounts without fetching metrics.
+// Returns the site metrics for the collector and a map of token -> AccountSiteData for later use.
 // If siteLimit > 0, only the first siteLimit sites are returned.
-func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []string, siteLimit int) []pantheon.SiteMetrics {
+func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []string, siteLimit int) ([]pantheon.SiteMetrics, map[string]AccountSiteData) {
 	var allSiteMetrics []pantheon.SiteMetrics
+	tokenSiteData := make(map[string]AccountSiteData)
 
 	for tokenIdx, token := range tokens {
 		log.Printf("Loading site list for account %d/%d", tokenIdx+1, len(tokens))
@@ -121,6 +129,12 @@ func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []
 		}
 
 		log.Printf("Account %s: Found %d sites", accountID, len(siteList))
+
+		// Store the fetched data for later use
+		tokenSiteData[token] = AccountSiteData{
+			AccountID: accountID,
+			Sites:     siteList,
+		}
 
 		// Create site metrics entries with empty metrics data
 		for siteID, site := range siteList {
@@ -148,10 +162,10 @@ func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []
 	}
 
 	log.Printf("Site list collection complete: %d sites found across %d accounts", len(allSiteMetrics), len(tokens))
-	return allSiteMetrics
+	return allSiteMetrics, tokenSiteData
 }
 
-// CollectAllMetrics collects metrics for all accounts
+// CollectAllMetrics collects metrics for all accounts (fetches site lists fresh)
 // If siteLimit > 0, only the first siteLimit sites are processed.
 func CollectAllMetrics(ctx context.Context, client *pantheon.Client, tokens []string, environment string, siteLimit int) []pantheon.SiteMetrics {
 	var allSiteMetrics []pantheon.SiteMetrics
@@ -165,6 +179,40 @@ func CollectAllMetrics(ctx context.Context, client *pantheon.Client, tokens []st
 		allSiteMetrics = append(allSiteMetrics, siteMetrics...)
 		totalSuccessCount += successCount
 		totalFailCount += failCount
+
+		// Check if limit reached after processing account
+		if siteLimit > 0 && len(allSiteMetrics) >= siteLimit {
+			break
+		}
+	}
+
+	log.Printf("Overall metrics collection complete: %d successful, %d failed across %d accounts", totalSuccessCount, totalFailCount, len(tokens))
+	return allSiteMetrics
+}
+
+// CollectAllMetricsWithSites collects metrics using pre-fetched site data (avoids duplicate site fetch)
+// If siteLimit > 0, only the first siteLimit sites are processed.
+func CollectAllMetricsWithSites(ctx context.Context, client *pantheon.Client, tokens []string, environment string, preFetchedSites map[string]AccountSiteData, siteLimit int) []pantheon.SiteMetrics {
+	var allSiteMetrics []pantheon.SiteMetrics
+	totalSuccessCount := 0
+	totalFailCount := 0
+
+	for tokenIdx, token := range tokens {
+		log.Printf("Processing account %d/%d", tokenIdx+1, len(tokens))
+
+		siteData, ok := preFetchedSites[token]
+		if !ok {
+			log.Printf("Warning: No pre-fetched site data for account %d, skipping", tokenIdx+1)
+			continue
+		}
+
+		// Process sites using the pre-fetched data
+		siteMetrics, successCount, failCount := processAccountSiteList(ctx, client, token, siteData.AccountID, environment, siteData.Sites, siteLimit, len(allSiteMetrics))
+		allSiteMetrics = append(allSiteMetrics, siteMetrics...)
+		totalSuccessCount += successCount
+		totalFailCount += failCount
+
+		log.Printf("Account %s: Metrics collection complete: %d successful, %d failed", siteData.AccountID, successCount, failCount)
 
 		// Check if limit reached after processing account
 		if siteLimit > 0 && len(allSiteMetrics) >= siteLimit {

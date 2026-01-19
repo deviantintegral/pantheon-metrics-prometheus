@@ -276,10 +276,13 @@ func TestCollectAllSiteListsEmptyTokens(t *testing.T) {
 	ctx := context.Background()
 	tokens := []string{}
 
-	result := CollectAllSiteLists(ctx, client, tokens, 0)
+	result, tokenSiteData := CollectAllSiteLists(ctx, client, tokens, 0)
 
 	if len(result) != 0 {
 		t.Errorf("Expected 0 sites with empty tokens, got %d", len(result))
+	}
+	if len(tokenSiteData) != 0 {
+		t.Errorf("Expected 0 token site data entries with empty tokens, got %d", len(tokenSiteData))
 	}
 }
 
@@ -291,11 +294,14 @@ func TestCollectAllSiteListsInvalidTokens(t *testing.T) {
 	tokens := []string{"invalid-token-1", "invalid-token-2"}
 
 	// This should complete without panic, handling auth failures gracefully
-	result := CollectAllSiteLists(ctx, client, tokens, 0)
+	result, tokenSiteData := CollectAllSiteLists(ctx, client, tokens, 0)
 
 	// With invalid tokens, we expect 0 sites (auth will fail for all)
 	if len(result) != 0 {
 		t.Errorf("Expected 0 sites with invalid tokens, got %d", len(result))
+	}
+	if len(tokenSiteData) != 0 {
+		t.Errorf("Expected 0 token site data entries with invalid tokens, got %d", len(tokenSiteData))
 	}
 }
 
@@ -327,6 +333,65 @@ func TestCollectAllMetricsInvalidTokens(t *testing.T) {
 	// With invalid tokens, we expect 0 sites
 	if len(result) != 0 {
 		t.Errorf("Expected 0 sites with invalid tokens, got %d", len(result))
+	}
+}
+
+// TestCollectAllMetricsWithSitesEmptyTokens tests CollectAllMetricsWithSites with empty tokens
+func TestCollectAllMetricsWithSitesEmptyTokens(t *testing.T) {
+	client := pantheon.NewClient(false)
+	ctx := context.Background()
+	tokens := []string{}
+	environment := testEnvLive
+	preFetchedSites := map[string]AccountSiteData{}
+
+	result := CollectAllMetricsWithSites(ctx, client, tokens, environment, preFetchedSites, 0)
+
+	if len(result) != 0 {
+		t.Errorf("Expected 0 sites with empty tokens, got %d", len(result))
+	}
+}
+
+// TestCollectAllMetricsWithSitesMissingToken tests CollectAllMetricsWithSites when token is not in pre-fetched data
+func TestCollectAllMetricsWithSitesMissingToken(t *testing.T) {
+	client := pantheon.NewClient(false)
+	ctx := context.Background()
+	tokens := []string{"token1"}
+	environment := testEnvLive
+	preFetchedSites := map[string]AccountSiteData{} // Empty, no matching token
+
+	result := CollectAllMetricsWithSites(ctx, client, tokens, environment, preFetchedSites, 0)
+
+	if len(result) != 0 {
+		t.Errorf("Expected 0 sites with missing token data, got %d", len(result))
+	}
+}
+
+// TestCollectAllMetricsWithSitesWithData tests CollectAllMetricsWithSites with pre-fetched data
+func TestCollectAllMetricsWithSitesWithData(t *testing.T) {
+	client := pantheon.NewClient(false)
+	ctx := context.Background()
+	token := "test-token"
+	tokens := []string{token}
+	environment := testEnvLive
+	preFetchedSites := map[string]AccountSiteData{
+		token: {
+			AccountID: "account1",
+			Sites: map[string]pantheon.SiteListEntry{
+				"site-uuid-1": {
+					Name:     "testsite1",
+					ID:       "site-uuid-1",
+					PlanName: "Basic",
+				},
+			},
+		},
+	}
+
+	// This will fail to fetch metrics (invalid token) but should use the pre-fetched data
+	result := CollectAllMetricsWithSites(ctx, client, tokens, environment, preFetchedSites, 0)
+
+	// With invalid token, metrics fetch will fail, so result should be empty
+	if len(result) != 0 {
+		t.Errorf("Expected 0 sites (metrics fetch fails), got %d", len(result))
 	}
 }
 
