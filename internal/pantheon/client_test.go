@@ -378,7 +378,7 @@ func TestLoadSiteListError(t *testing.T) {
 
 func TestNewClient(t *testing.T) {
 	// Test that NewClient creates a client with a session manager
-	client := NewClient()
+	client := NewClient(false)
 	if client == nil {
 		t.Fatal("Expected non-nil client")
 	}
@@ -407,7 +407,7 @@ func TestGetAccountIDEmpty(t *testing.T) {
 
 func TestClientInvalidateSession(t *testing.T) {
 	// Test that InvalidateSession does not panic and works correctly
-	client := NewClient()
+	client := NewClient(false)
 
 	// Should not panic even with non-existent token
 	client.InvalidateSession("non-existent-token")
@@ -421,7 +421,7 @@ func TestClientInvalidateSession(t *testing.T) {
 
 func TestFetchAllSitesInvalidToken(t *testing.T) {
 	// Test that FetchAllSites handles authentication failure gracefully
-	client := NewClient()
+	client := NewClient(false)
 	ctx := context.Background()
 
 	// This should fail authentication and return an error
@@ -440,7 +440,7 @@ func TestFetchAllSitesInvalidToken(t *testing.T) {
 
 func TestFetchMetricsDataInvalidToken(t *testing.T) {
 	// Test that FetchMetricsData handles authentication failure gracefully
-	client := NewClient()
+	client := NewClient(false)
 	ctx := context.Background()
 
 	// This should fail authentication and return an error
@@ -454,7 +454,7 @@ func TestFetchMetricsDataInvalidToken(t *testing.T) {
 
 func TestAuthenticateInvalidToken(t *testing.T) {
 	// Test that Authenticate handles invalid token gracefully
-	client := NewClient()
+	client := NewClient(false)
 	ctx := context.Background()
 
 	// This should fail authentication and return an error
@@ -468,7 +468,7 @@ func TestAuthenticateInvalidToken(t *testing.T) {
 
 func TestGetEmailInvalidToken(t *testing.T) {
 	// Test that GetEmail handles invalid token gracefully
-	client := NewClient()
+	client := NewClient(false)
 	ctx := context.Background()
 
 	// This should fail because there's no session for this token

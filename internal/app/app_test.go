@@ -249,7 +249,7 @@ func TestSetupHTTPHandlers(t *testing.T) {
 
 // TestStartRefreshManager tests the StartRefreshManager function
 func TestStartRefreshManager(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{"token1"}
 	environment := testEnvLive
 	refreshInterval := 1 * time.Minute
@@ -272,7 +272,7 @@ func TestInitialMetricsDurationConstant(t *testing.T) {
 
 // TestCollectAllSiteListsEmptyTokens tests CollectAllSiteLists with empty tokens
 func TestCollectAllSiteListsEmptyTokens(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	ctx := context.Background()
 	tokens := []string{}
 
@@ -286,7 +286,7 @@ func TestCollectAllSiteListsEmptyTokens(t *testing.T) {
 // TestCollectAllSiteListsInvalidTokens tests CollectAllSiteLists with invalid tokens
 // The authentication will fail and the function should handle errors gracefully
 func TestCollectAllSiteListsInvalidTokens(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	ctx := context.Background()
 	tokens := []string{"invalid-token-1", "invalid-token-2"}
 
@@ -301,7 +301,7 @@ func TestCollectAllSiteListsInvalidTokens(t *testing.T) {
 
 // TestCollectAllMetricsEmptyTokens tests CollectAllMetrics with empty tokens
 func TestCollectAllMetricsEmptyTokens(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	ctx := context.Background()
 	tokens := []string{}
 	environment := testEnvLive
@@ -316,7 +316,7 @@ func TestCollectAllMetricsEmptyTokens(t *testing.T) {
 // TestCollectAllMetricsInvalidTokens tests CollectAllMetrics with invalid tokens
 // The authentication will fail and the function should handle errors gracefully
 func TestCollectAllMetricsInvalidTokens(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	ctx := context.Background()
 	tokens := []string{"invalid-token"}
 	environment := testEnvLive
@@ -332,7 +332,7 @@ func TestCollectAllMetricsInvalidTokens(t *testing.T) {
 
 // TestProcessAccountSiteListEmpty tests processAccountSiteList with empty site list
 func TestProcessAccountSiteListEmpty(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	ctx := context.Background()
 	token := "test-token"
 	accountID := "test-account"
@@ -355,7 +355,7 @@ func TestProcessAccountSiteListEmpty(t *testing.T) {
 // TestProcessAccountSiteListWithSites tests processAccountSiteList with sites
 // This will fail to fetch metrics but exercises the error handling path
 func TestProcessAccountSiteListWithSites(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	ctx := context.Background()
 	token := "test-token"
 	accountID := "test-account"
@@ -390,7 +390,7 @@ func TestProcessAccountSiteListWithSites(t *testing.T) {
 
 // TestCollectAccountMetricsInvalidToken tests collectAccountMetrics with invalid token
 func TestCollectAccountMetricsInvalidToken(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	ctx := context.Background()
 	token := "invalid-token"
 	environment := testEnvLive

@@ -21,14 +21,16 @@ type Session struct {
 // SessionManager handles authentication and client creation.
 // Sessions are stored in memory only (no disk persistence).
 type SessionManager struct {
-	mu       sync.RWMutex
-	sessions map[string]*Session // key: machineToken
+	mu           sync.RWMutex
+	sessions     map[string]*Session // key: machineToken
+	debugEnabled bool
 }
 
 // NewSessionManager creates a new session manager.
-func NewSessionManager() *SessionManager {
+func NewSessionManager(debug bool) *SessionManager {
 	return &SessionManager{
-		sessions: make(map[string]*Session),
+		sessions:     make(map[string]*Session),
+		debugEnabled: debug,
 	}
 }
 
@@ -38,8 +40,14 @@ func (sm *SessionManager) Authenticate(ctx context.Context, machineToken string)
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	// Create unauthenticated client for login
-	client := api.NewClient()
+	// Create unauthenticated client for login with debug logging if enabled
+	var client *api.Client
+	if sm.debugEnabled {
+		logger := api.NewLogger(api.VerbosityTrace)
+		client = api.NewClient(api.WithLogger(logger))
+	} else {
+		client = api.NewClient()
+	}
 
 	// Authenticate with machine token
 	authService := api.NewAuthService(client)

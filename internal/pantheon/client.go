@@ -14,12 +14,15 @@ import (
 // Client wraps the terminus-golang library for Pantheon API access.
 type Client struct {
 	sessionManager *SessionManager
+	debugEnabled   bool
 }
 
 // NewClient creates a new Pantheon API client.
-func NewClient() *Client {
+// If debug is true, HTTP requests and responses will be logged to stderr.
+func NewClient(debug bool) *Client {
 	return &Client{
-		sessionManager: NewSessionManager(),
+		sessionManager: NewSessionManager(debug),
+		debugEnabled:   debug,
 	}
 }
 

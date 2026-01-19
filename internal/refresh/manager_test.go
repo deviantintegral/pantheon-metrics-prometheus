@@ -15,7 +15,7 @@ const (
 )
 
 func TestNewManager(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{"token1", "token2"}
 	environment := testEnvLive
 	refreshInterval := 60 * time.Minute
@@ -72,7 +72,7 @@ func TestNewManager(t *testing.T) {
 }
 
 func TestNewManagerWithMultipleTokens(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{"token1", "token2", "token3", "token4"}
 	environment := testEnvDev
 	refreshInterval := 30 * time.Minute
@@ -96,7 +96,7 @@ func TestNewManagerWithMultipleTokens(t *testing.T) {
 }
 
 func TestNewManagerWithEmptyTokens(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{}
 	environment := "test"
 	refreshInterval := 15 * time.Minute
@@ -116,7 +116,7 @@ func TestNewManagerWithEmptyTokens(t *testing.T) {
 }
 
 func TestNewManagerWithDifferentIntervals(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{"token1"}
 	environment := testEnvLive
 	sites := []pantheon.SiteMetrics{}
@@ -142,7 +142,7 @@ func TestNewManagerWithDifferentIntervals(t *testing.T) {
 }
 
 func TestManagerStart(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{}
 	environment := testEnvLive
 	sites := []pantheon.SiteMetrics{}
@@ -163,7 +163,7 @@ func TestManagerStart(t *testing.T) {
 }
 
 func TestRefreshSiteMetricsWithInvalidToken(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{"token1"}
 	environment := testEnvLive
 	sites := []pantheon.SiteMetrics{}
@@ -178,7 +178,7 @@ func TestRefreshSiteMetricsWithInvalidToken(t *testing.T) {
 }
 
 func TestRefreshAllSiteListsEmptyTokens(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{}
 	environment := testEnvLive
 	sites := []pantheon.SiteMetrics{}
@@ -196,7 +196,7 @@ func TestRefreshAllSiteListsEmptyTokens(t *testing.T) {
 }
 
 func TestManagerWithExistingSites(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{"token1", "token2"}
 	environment := testEnvDev
 
@@ -246,7 +246,7 @@ func TestManagerWithExistingSites(t *testing.T) {
 }
 
 func TestRefreshMetricsWithQueueTickerFires(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{"token1"}
 	environment := testEnvLive
 
@@ -299,7 +299,7 @@ func TestRefreshMetricsWithQueueTickerFires(t *testing.T) {
 }
 
 func TestInitializeDiscoveredSites(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{"token1"}
 	environment := testEnvLive
 	sites := []pantheon.SiteMetrics{}
@@ -314,7 +314,7 @@ func TestInitializeDiscoveredSites(t *testing.T) {
 }
 
 func TestInitializeDiscoveredSitesWithSites(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{"token1"}
 	environment := testEnvLive
 
@@ -563,7 +563,7 @@ func TestDurationConstants(t *testing.T) {
 }
 
 func TestRefreshSiteMetricsWithTokenMapping(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{testToken32}
 	environment := testEnvLive
 
@@ -601,7 +601,7 @@ func TestRefreshSiteMetricsWithTokenMapping(t *testing.T) {
 }
 
 func TestRefreshSiteMetricsFirstTimeFetch(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{testToken32}
 	environment := testEnvLive
 
@@ -637,7 +637,7 @@ func TestRefreshSiteMetricsFirstTimeFetch(t *testing.T) {
 }
 
 func TestRefreshSiteMetricsSubsequentFetch(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{testToken32}
 	environment := testEnvLive
 
@@ -673,7 +673,7 @@ func TestRefreshSiteMetricsSubsequentFetch(t *testing.T) {
 }
 
 func TestManagerAccountTokenMap(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{"token1", "token2"}
 	environment := testEnvLive
 	sites := []pantheon.SiteMetrics{}
@@ -700,7 +700,7 @@ func TestManagerAccountTokenMap(t *testing.T) {
 }
 
 func TestManagerDiscoveredSitesMap(t *testing.T) {
-	client := pantheon.NewClient()
+	client := pantheon.NewClient(false)
 	tokens := []string{"token1"}
 	environment := testEnvLive
 	sites := []pantheon.SiteMetrics{}
