@@ -51,11 +51,25 @@ func (c *Client) GetEmail(ctx context.Context, machineToken string) (string, err
 	return c.sessionManager.GetEmail(ctx, machineToken)
 }
 
-// FetchAllSites fetches all sites accessible to the user, including:
+// getOrgDisplayName returns the display name for an organization (label if available, ID otherwise).
+func getOrgDisplayName(orgID, orgLabel string) string {
+	if orgLabel != "" {
+		return orgLabel
+	}
+	return orgID
+}
+
+// FetchAllSites fetches all sites accessible to the user.
+// If orgID is non-empty, only sites from that organization will be returned.
+// Otherwise, it fetches:
 // 1. Sites from direct user memberships
 // 2. Sites from all organizations the user is a member of
-func (c *Client) FetchAllSites(ctx context.Context, machineToken string) (map[string]SiteListEntry, error) {
-	log.Printf("Fetching all sites from Pantheon API...")
+func (c *Client) FetchAllSites(ctx context.Context, machineToken string, orgID string) (map[string]SiteListEntry, error) {
+	if orgID != "" {
+		log.Printf("Fetching sites from organization %s...", orgID)
+	} else {
+		log.Printf("Fetching all sites from Pantheon API...")
+	}
 
 	session, err := c.sessionManager.GetSession(ctx, machineToken)
 	if err != nil {
@@ -63,12 +77,14 @@ func (c *Client) FetchAllSites(ctx context.Context, machineToken string) (map[st
 	}
 
 	sitesService := api.NewSitesService(session.Client)
-	orgsService := api.NewOrganizationsService(session.Client)
-
-	// Track unique sites by ID to avoid duplicates
 	siteMap := make(map[string]SiteListEntry)
 
-	// 1. Get sites from direct user memberships
+	// If orgID is specified, only fetch sites from that organization
+	if orgID != "" {
+		return c.fetchSitesFromOrg(ctx, sitesService, orgID, siteMap)
+	}
+
+	// Fetch sites from direct user memberships
 	userSites, err := sitesService.List(ctx, session.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list user sites: %w", err)
@@ -78,48 +94,54 @@ func (c *Client) FetchAllSites(ctx context.Context, machineToken string) (map[st
 	}
 	log.Printf("Found %d sites from direct user memberships", len(userSites))
 
-	// 2. Get user's organization memberships
-	orgs, err := orgsService.List(ctx, session.UserID)
-	if err != nil {
-		// Log warning but continue - user sites were already fetched
-		log.Printf("Warning: failed to list user organizations: %v", err)
-	} else {
-		log.Printf("Found %d organizations", len(orgs))
-
-		// 3. For each organization, get all sites
-		for _, org := range orgs {
-			orgSites, err := sitesService.ListByOrganization(ctx, org.ID)
-			if err != nil {
-				// Continue on error to get sites from other orgs
-				orgName := org.ID
-				if org.Label != "" {
-					orgName = org.Label
-				}
-				log.Printf("Warning: failed to list sites for organization %s: %v", orgName, err)
-				continue
-			}
-
-			// Add org sites to the map (deduplicating by ID)
-			// Don't overwrite if site already exists (to preserve direct team membership info)
-			orgSiteCount := 0
-			for _, site := range orgSites {
-				if _, exists := siteMap[site.ID]; !exists {
-					siteMap[site.ID] = ConvertSite(site)
-					orgSiteCount++
-				}
-			}
-			if orgSiteCount > 0 {
-				orgName := org.ID
-				if org.Label != "" {
-					orgName = org.Label
-				}
-				log.Printf("Found %d additional sites from organization %s", orgSiteCount, orgName)
-			}
-		}
-	}
+	// Fetch sites from user's organizations
+	c.fetchSitesFromAllOrgs(ctx, session, sitesService, siteMap)
 
 	log.Printf("Total unique sites found: %d", len(siteMap))
 	return siteMap, nil
+}
+
+// fetchSitesFromOrg fetches sites from a specific organization.
+func (c *Client) fetchSitesFromOrg(ctx context.Context, sitesService *api.SitesService, orgID string, siteMap map[string]SiteListEntry) (map[string]SiteListEntry, error) {
+	orgSites, err := sitesService.ListByOrganization(ctx, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list sites for organization %s: %w", orgID, err)
+	}
+	for _, site := range orgSites {
+		siteMap[site.ID] = ConvertSite(site)
+	}
+	log.Printf("Found %d sites from organization %s", len(orgSites), orgID)
+	return siteMap, nil
+}
+
+// fetchSitesFromAllOrgs fetches sites from all organizations the user belongs to.
+func (c *Client) fetchSitesFromAllOrgs(ctx context.Context, session *Session, sitesService *api.SitesService, siteMap map[string]SiteListEntry) {
+	orgsService := api.NewOrganizationsService(session.Client)
+	orgs, err := orgsService.List(ctx, session.UserID)
+	if err != nil {
+		log.Printf("Warning: failed to list user organizations: %v", err)
+		return
+	}
+
+	log.Printf("Found %d organizations", len(orgs))
+	for _, org := range orgs {
+		orgSites, err := sitesService.ListByOrganization(ctx, org.ID)
+		if err != nil {
+			log.Printf("Warning: failed to list sites for organization %s: %v", getOrgDisplayName(org.ID, org.Label), err)
+			continue
+		}
+
+		orgSiteCount := 0
+		for _, site := range orgSites {
+			if _, exists := siteMap[site.ID]; !exists {
+				siteMap[site.ID] = ConvertSite(site)
+				orgSiteCount++
+			}
+		}
+		if orgSiteCount > 0 {
+			log.Printf("Found %d additional sites from organization %s", orgSiteCount, getOrgDisplayName(org.ID, org.Label))
+		}
+	}
 }
 
 // FetchMetricsData fetches metrics data for a site.

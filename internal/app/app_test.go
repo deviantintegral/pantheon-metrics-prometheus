@@ -256,7 +256,24 @@ func TestStartRefreshManager(t *testing.T) {
 	c := collector.NewPantheonCollector([]pantheon.SiteMetrics{})
 
 	// This should not panic and should return a manager
-	manager := StartRefreshManager(client, tokens, environment, refreshInterval, c, 0)
+	manager := StartRefreshManager(client, tokens, environment, refreshInterval, c, 0, "")
+
+	if manager == nil {
+		t.Error("Expected refresh manager to be created, got nil")
+	}
+}
+
+// TestStartRefreshManagerWithOrgID tests the StartRefreshManager function with org filter
+func TestStartRefreshManagerWithOrgID(t *testing.T) {
+	client := pantheon.NewClient(false)
+	tokens := []string{"token1"}
+	environment := testEnvLive
+	refreshInterval := 1 * time.Minute
+	c := collector.NewPantheonCollector([]pantheon.SiteMetrics{})
+	orgID := "org-uuid-12345"
+
+	// This should not panic and should return a manager
+	manager := StartRefreshManager(client, tokens, environment, refreshInterval, c, 0, orgID)
 
 	if manager == nil {
 		t.Error("Expected refresh manager to be created, got nil")
@@ -276,7 +293,7 @@ func TestCollectAllSiteListsEmptyTokens(t *testing.T) {
 	ctx := context.Background()
 	tokens := []string{}
 
-	result, tokenSiteData := CollectAllSiteLists(ctx, client, tokens, 0)
+	result, tokenSiteData := CollectAllSiteLists(ctx, client, tokens, 0, "")
 
 	if len(result) != 0 {
 		t.Errorf("Expected 0 sites with empty tokens, got %d", len(result))
@@ -294,7 +311,7 @@ func TestCollectAllSiteListsInvalidTokens(t *testing.T) {
 	tokens := []string{"invalid-token-1", "invalid-token-2"}
 
 	// This should complete without panic, handling auth failures gracefully
-	result, tokenSiteData := CollectAllSiteLists(ctx, client, tokens, 0)
+	result, tokenSiteData := CollectAllSiteLists(ctx, client, tokens, 0, "")
 
 	// With invalid tokens, we expect 0 sites (auth will fail for all)
 	if len(result) != 0 {
@@ -312,7 +329,7 @@ func TestCollectAllMetricsEmptyTokens(t *testing.T) {
 	tokens := []string{}
 	environment := testEnvLive
 
-	result := CollectAllMetrics(ctx, client, tokens, environment, 0)
+	result := CollectAllMetrics(ctx, client, tokens, environment, 0, "")
 
 	if len(result) != 0 {
 		t.Errorf("Expected 0 sites with empty tokens, got %d", len(result))
@@ -328,7 +345,7 @@ func TestCollectAllMetricsInvalidTokens(t *testing.T) {
 	environment := testEnvLive
 
 	// This should complete without panic, handling auth failures gracefully
-	result := CollectAllMetrics(ctx, client, tokens, environment, 0)
+	result := CollectAllMetrics(ctx, client, tokens, environment, 0, "")
 
 	// With invalid tokens, we expect 0 sites
 	if len(result) != 0 {
@@ -461,7 +478,7 @@ func TestCollectAccountMetricsInvalidToken(t *testing.T) {
 	environment := testEnvLive
 
 	// This should complete without panic, handling auth failure gracefully
-	siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment, 0, 0)
+	siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment, 0, 0, "")
 
 	// With invalid token, we expect 0 metrics (auth will fail)
 	if len(siteMetrics) != 0 {
@@ -472,5 +489,64 @@ func TestCollectAccountMetricsInvalidToken(t *testing.T) {
 	}
 	if failCount != 0 {
 		t.Errorf("Expected 0 fail count (auth fails before site list), got %d", failCount)
+	}
+}
+
+// TestCollectAllSiteListsWithOrgID tests CollectAllSiteLists with organization filter
+func TestCollectAllSiteListsWithOrgID(t *testing.T) {
+	client := pantheon.NewClient(false)
+	ctx := context.Background()
+	tokens := []string{"invalid-token"}
+	orgID := "org-uuid-12345"
+
+	// This should complete without panic, handling auth failure gracefully
+	result, tokenSiteData := CollectAllSiteLists(ctx, client, tokens, 0, orgID)
+
+	// With invalid tokens, we expect 0 sites (auth will fail)
+	if len(result) != 0 {
+		t.Errorf("Expected 0 sites with invalid tokens and orgID, got %d", len(result))
+	}
+	if len(tokenSiteData) != 0 {
+		t.Errorf("Expected 0 token site data entries with invalid tokens, got %d", len(tokenSiteData))
+	}
+}
+
+// TestCollectAllMetricsWithOrgID tests CollectAllMetrics with organization filter
+func TestCollectAllMetricsWithOrgID(t *testing.T) {
+	client := pantheon.NewClient(false)
+	ctx := context.Background()
+	tokens := []string{"invalid-token"}
+	environment := testEnvLive
+	orgID := "org-uuid-12345"
+
+	// This should complete without panic, handling auth failure gracefully
+	result := CollectAllMetrics(ctx, client, tokens, environment, 0, orgID)
+
+	// With invalid tokens, we expect 0 sites
+	if len(result) != 0 {
+		t.Errorf("Expected 0 sites with invalid tokens and orgID, got %d", len(result))
+	}
+}
+
+// TestCollectAccountMetricsWithOrgID tests collectAccountMetrics with organization filter
+func TestCollectAccountMetricsWithOrgID(t *testing.T) {
+	client := pantheon.NewClient(false)
+	ctx := context.Background()
+	token := "invalid-token"
+	environment := testEnvLive
+	orgID := "org-uuid-12345"
+
+	// This should complete without panic, handling auth failure gracefully
+	siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment, 0, 0, orgID)
+
+	// With invalid token, we expect 0 metrics (auth will fail)
+	if len(siteMetrics) != 0 {
+		t.Errorf("Expected 0 site metrics with invalid token and orgID, got %d", len(siteMetrics))
+	}
+	if successCount != 0 {
+		t.Errorf("Expected 0 success count, got %d", successCount)
+	}
+	if failCount != 0 {
+		t.Errorf("Expected 0 fail count, got %d", failCount)
 	}
 }

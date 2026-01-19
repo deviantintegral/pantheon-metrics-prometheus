@@ -23,6 +23,7 @@ func main() {
 	refreshInterval := flag.Int("refreshInterval", 60, "Refresh interval in minutes (default: 60)")
 	debug := flag.Bool("debug", false, "Enable debug logging of HTTP requests and responses to stderr")
 	siteLimit := flag.Int("siteLimit", 0, "Maximum number of sites to query (0 = no limit)")
+	orgID := flag.String("orgID", "", "Limit metrics to sites from this organization ID (optional)")
 	flag.Parse()
 
 	// Read machine tokens from environment variable
@@ -43,9 +44,14 @@ func main() {
 	client := pantheon.NewClient(*debug)
 	ctx := context.Background()
 
+	// Log organization filter if specified
+	if *orgID != "" {
+		log.Printf("Filtering sites to organization: %s", *orgID)
+	}
+
 	// Collect site lists first (fast - no metrics)
 	log.Printf("Loading site lists...")
-	allSites, preFetchedSites := app.CollectAllSiteLists(ctx, client, tokens, *siteLimit)
+	allSites, preFetchedSites := app.CollectAllSiteLists(ctx, client, tokens, *siteLimit, *orgID)
 
 	// Create collector with sites (empty metrics initially)
 	pantheonCollector := collector.NewPantheonCollector(allSites)
@@ -59,7 +65,7 @@ func main() {
 
 	// Start refresh manager
 	refreshIntervalDuration := time.Duration(*refreshInterval) * time.Minute
-	refreshManager := app.StartRefreshManager(client, tokens, *environment, refreshIntervalDuration, pantheonCollector, *siteLimit)
+	refreshManager := app.StartRefreshManager(client, tokens, *environment, refreshIntervalDuration, pantheonCollector, *siteLimit, *orgID)
 	refreshManager.InitializeDiscoveredSites()
 	log.Printf("Refresh manager started (interval: %d minutes)", *refreshInterval)
 

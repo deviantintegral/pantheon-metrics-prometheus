@@ -44,7 +44,7 @@ func TestNewManager(t *testing.T) {
 
 	collector := collector.NewPantheonCollector(sites)
 
-	manager := NewManager(client, tokens, environment, refreshInterval, collector, 0)
+	manager := NewManager(client, tokens, environment, refreshInterval, collector, 0, "")
 
 	if manager == nil {
 		t.Fatal("Expected refresh manager to be created, got nil")
@@ -80,7 +80,7 @@ func TestNewManagerWithMultipleTokens(t *testing.T) {
 	sites := []pantheon.SiteMetrics{}
 	collector := collector.NewPantheonCollector(sites)
 
-	manager := NewManager(client, tokens, environment, refreshInterval, collector, 0)
+	manager := NewManager(client, tokens, environment, refreshInterval, collector, 0, "")
 
 	if len(manager.tokens) != 4 {
 		t.Errorf("Expected 4 tokens, got %d", len(manager.tokens))
@@ -104,7 +104,7 @@ func TestNewManagerWithEmptyTokens(t *testing.T) {
 	sites := []pantheon.SiteMetrics{}
 	collector := collector.NewPantheonCollector(sites)
 
-	manager := NewManager(client, tokens, environment, refreshInterval, collector, 0)
+	manager := NewManager(client, tokens, environment, refreshInterval, collector, 0, "")
 
 	if manager == nil {
 		t.Fatal("Expected refresh manager to be created, got nil")
@@ -123,19 +123,19 @@ func TestNewManagerWithDifferentIntervals(t *testing.T) {
 	collector := collector.NewPantheonCollector(sites)
 
 	// Test 5 minutes
-	manager1 := NewManager(client, tokens, environment, 5*time.Minute, collector, 0)
+	manager1 := NewManager(client, tokens, environment, 5*time.Minute, collector, 0, "")
 	if manager1.refreshInterval != 5*time.Minute {
 		t.Errorf("Expected refresh interval 5m, got %v", manager1.refreshInterval)
 	}
 
 	// Test 2 hours
-	manager2 := NewManager(client, tokens, environment, 120*time.Minute, collector, 0)
+	manager2 := NewManager(client, tokens, environment, 120*time.Minute, collector, 0, "")
 	if manager2.refreshInterval != 120*time.Minute {
 		t.Errorf("Expected refresh interval 120m, got %v", manager2.refreshInterval)
 	}
 
 	// Test 1 minute
-	manager3 := NewManager(client, tokens, environment, 1*time.Minute, collector, 0)
+	manager3 := NewManager(client, tokens, environment, 1*time.Minute, collector, 0, "")
 	if manager3.refreshInterval != 1*time.Minute {
 		t.Errorf("Expected refresh interval 1m, got %v", manager3.refreshInterval)
 	}
@@ -147,7 +147,7 @@ func TestManagerStart(t *testing.T) {
 	environment := testEnvLive
 	sites := []pantheon.SiteMetrics{}
 	collector := collector.NewPantheonCollector(sites)
-	manager := NewManager(client, tokens, environment, 1*time.Minute, collector, 0)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, collector, 0, "")
 
 	// Start should not panic even with empty tokens
 	defer func() {
@@ -168,7 +168,7 @@ func TestRefreshSiteMetricsWithInvalidToken(t *testing.T) {
 	environment := testEnvLive
 	sites := []pantheon.SiteMetrics{}
 	collector := collector.NewPantheonCollector(sites)
-	manager := NewManager(client, tokens, environment, 1*time.Minute, collector, 0)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, collector, 0, "")
 
 	// Try to refresh metrics for a non-existent account
 	// This should log a warning and return without panicking
@@ -183,7 +183,7 @@ func TestRefreshAllSiteListsEmptyTokens(t *testing.T) {
 	environment := testEnvLive
 	sites := []pantheon.SiteMetrics{}
 	collector := collector.NewPantheonCollector(sites)
-	manager := NewManager(client, tokens, environment, 1*time.Minute, collector, 0)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, collector, 0, "")
 
 	// This should complete without panic even with no tokens
 	manager.refreshAllSiteLists()
@@ -231,7 +231,7 @@ func TestManagerWithExistingSites(t *testing.T) {
 	}
 
 	collector := collector.NewPantheonCollector(sites)
-	manager := NewManager(client, tokens, environment, 30*time.Minute, collector, 0)
+	manager := NewManager(client, tokens, environment, 30*time.Minute, collector, 0, "")
 
 	// Verify manager has access to existing sites through collector
 	currentSites := collector.GetSites()
@@ -273,7 +273,7 @@ func TestRefreshMetricsWithQueueTickerFires(t *testing.T) {
 	}
 
 	collector := collector.NewPantheonCollector(sites)
-	manager := NewManager(client, tokens, environment, 3*time.Minute, collector, 0)
+	manager := NewManager(client, tokens, environment, 3*time.Minute, collector, 0, "")
 
 	// Use a short ticker interval for testing (2 seconds)
 	manager.SetTickerInterval(2 * time.Second)
@@ -304,7 +304,7 @@ func TestInitializeDiscoveredSites(t *testing.T) {
 	environment := testEnvLive
 	sites := []pantheon.SiteMetrics{}
 	collector := collector.NewPantheonCollector(sites)
-	manager := NewManager(client, tokens, environment, 1*time.Minute, collector, 0)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, collector, 0, "")
 
 	manager.InitializeDiscoveredSites()
 
@@ -357,7 +357,7 @@ func TestInitializeDiscoveredSitesWithSites(t *testing.T) {
 	}
 
 	collector := collector.NewPantheonCollector(sites)
-	manager := NewManager(client, tokens, environment, 1*time.Minute, collector, 0)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, collector, 0, "")
 
 	manager.InitializeDiscoveredSites()
 
@@ -590,7 +590,7 @@ func TestRefreshSiteMetricsWithTokenMapping(t *testing.T) {
 	}
 
 	coll := collector.NewPantheonCollector(sites)
-	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0, "")
 
 	// Pre-populate the account token map
 	manager.accountTokenMap["testaccount@example.com"] = testToken32
@@ -617,7 +617,7 @@ func TestRefreshSiteMetricsFirstTimeFetch(t *testing.T) {
 	}
 
 	coll := collector.NewPantheonCollector(sites)
-	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0, "")
 
 	// Pre-populate the account token map
 	manager.accountTokenMap["account@example.com"] = testToken32
@@ -653,7 +653,7 @@ func TestRefreshSiteMetricsSubsequentFetch(t *testing.T) {
 	}
 
 	coll := collector.NewPantheonCollector(sites)
-	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0, "")
 
 	// Pre-populate the account token map
 	manager.accountTokenMap["account@example.com"] = testToken32
@@ -678,7 +678,7 @@ func TestManagerAccountTokenMap(t *testing.T) {
 	environment := testEnvLive
 	sites := []pantheon.SiteMetrics{}
 	coll := collector.NewPantheonCollector(sites)
-	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0, "")
 
 	// Verify account token map is initialized
 	if manager.accountTokenMap == nil {
@@ -705,7 +705,7 @@ func TestManagerDiscoveredSitesMap(t *testing.T) {
 	environment := testEnvLive
 	sites := []pantheon.SiteMetrics{}
 	coll := collector.NewPantheonCollector(sites)
-	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0, "")
 
 	// Verify discovered sites map is initialized
 	if manager.discoveredSites == nil {
@@ -723,5 +723,42 @@ func TestManagerDiscoveredSitesMap(t *testing.T) {
 
 	if len(manager.discoveredSites) != 2 {
 		t.Errorf("Expected 2 entries in discoveredSites, got %d", len(manager.discoveredSites))
+	}
+}
+
+func TestNewManagerWithOrgID(t *testing.T) {
+	client := pantheon.NewClient(false)
+	tokens := []string{"token1"}
+	environment := testEnvLive
+	sites := []pantheon.SiteMetrics{}
+	coll := collector.NewPantheonCollector(sites)
+	orgID := "org-uuid-12345"
+
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0, orgID)
+
+	if manager == nil {
+		t.Fatal("Expected refresh manager to be created, got nil")
+	}
+
+	if manager.orgID != orgID {
+		t.Errorf("Expected orgID %s, got %s", orgID, manager.orgID)
+	}
+}
+
+func TestNewManagerWithEmptyOrgID(t *testing.T) {
+	client := pantheon.NewClient(false)
+	tokens := []string{"token1"}
+	environment := testEnvLive
+	sites := []pantheon.SiteMetrics{}
+	coll := collector.NewPantheonCollector(sites)
+
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0, "")
+
+	if manager == nil {
+		t.Fatal("Expected refresh manager to be created, got nil")
+	}
+
+	if manager.orgID != "" {
+		t.Errorf("Expected empty orgID, got %s", manager.orgID)
 	}
 }

@@ -72,7 +72,8 @@ func processAccountSiteList(ctx context.Context, client *pantheon.Client, token,
 
 // collectAccountMetrics collects metrics for a single account
 // siteLimit and currentCount are used to limit the total number of sites processed globally.
-func collectAccountMetrics(ctx context.Context, client *pantheon.Client, token, environment string, siteLimit, currentCount int) ([]pantheon.SiteMetrics, int, int) {
+// If orgID is non-empty, only sites from that organization will be fetched.
+func collectAccountMetrics(ctx context.Context, client *pantheon.Client, token, environment string, siteLimit, currentCount int, orgID string) ([]pantheon.SiteMetrics, int, int) {
 	var siteMetrics []pantheon.SiteMetrics
 	successCount := 0
 	failCount := 0
@@ -86,8 +87,8 @@ func collectAccountMetrics(ctx context.Context, client *pantheon.Client, token, 
 		return siteMetrics, successCount, failCount
 	}
 
-	// Fetch all sites for this account
-	siteList, err := client.FetchAllSites(ctx, token)
+	// Fetch all sites for this account (filtered by orgID if provided)
+	siteList, err := client.FetchAllSites(ctx, token, orgID)
 	if err != nil {
 		log.Printf("Warning: Failed to fetch site list for account %s: %v", accountID, err)
 		return siteMetrics, successCount, failCount
@@ -105,7 +106,8 @@ func collectAccountMetrics(ctx context.Context, client *pantheon.Client, token, 
 // CollectAllSiteLists collects site lists for all accounts without fetching metrics.
 // Returns the site metrics for the collector and a map of token -> AccountSiteData for later use.
 // If siteLimit > 0, only the first siteLimit sites are returned.
-func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []string, siteLimit int) ([]pantheon.SiteMetrics, map[string]AccountSiteData) {
+// If orgID is non-empty, only sites from that organization will be returned.
+func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []string, siteLimit int, orgID string) ([]pantheon.SiteMetrics, map[string]AccountSiteData) {
 	var allSiteMetrics []pantheon.SiteMetrics
 	tokenSiteData := make(map[string]AccountSiteData)
 
@@ -121,8 +123,8 @@ func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []
 			continue
 		}
 
-		// Fetch all sites for this account
-		siteList, err := client.FetchAllSites(ctx, token)
+		// Fetch all sites for this account (filtered by orgID if provided)
+		siteList, err := client.FetchAllSites(ctx, token, orgID)
 		if err != nil {
 			log.Printf("Warning: Failed to fetch site list for account %s: %v", accountID, err)
 			continue
@@ -167,7 +169,8 @@ func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []
 
 // CollectAllMetrics collects metrics for all accounts (fetches site lists fresh)
 // If siteLimit > 0, only the first siteLimit sites are processed.
-func CollectAllMetrics(ctx context.Context, client *pantheon.Client, tokens []string, environment string, siteLimit int) []pantheon.SiteMetrics {
+// If orgID is non-empty, only sites from that organization will be returned.
+func CollectAllMetrics(ctx context.Context, client *pantheon.Client, tokens []string, environment string, siteLimit int, orgID string) []pantheon.SiteMetrics {
 	var allSiteMetrics []pantheon.SiteMetrics
 	totalSuccessCount := 0
 	totalFailCount := 0
@@ -175,7 +178,7 @@ func CollectAllMetrics(ctx context.Context, client *pantheon.Client, tokens []st
 	for tokenIdx, token := range tokens {
 		log.Printf("Processing account %d/%d", tokenIdx+1, len(tokens))
 
-		siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment, siteLimit, len(allSiteMetrics))
+		siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment, siteLimit, len(allSiteMetrics), orgID)
 		allSiteMetrics = append(allSiteMetrics, siteMetrics...)
 		totalSuccessCount += successCount
 		totalFailCount += failCount
@@ -265,8 +268,8 @@ func SetupHTTPHandlers(registry *prometheus.Registry, environment string, tokens
 }
 
 // StartRefreshManager creates and starts the refresh manager
-func StartRefreshManager(client *pantheon.Client, tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector, siteLimit int) *refresh.Manager {
-	refreshManager := refresh.NewManager(client, tokens, environment, refreshInterval, c, siteLimit)
+func StartRefreshManager(client *pantheon.Client, tokens []string, environment string, refreshInterval time.Duration, c *collector.PantheonCollector, siteLimit int, orgID string) *refresh.Manager {
+	refreshManager := refresh.NewManager(client, tokens, environment, refreshInterval, c, siteLimit, orgID)
 	refreshManager.Start()
 	return refreshManager
 }
