@@ -42,7 +42,7 @@ jobs:
         run: go run scripts/check-coverage-threshold.go coverage.out 56.0
 
       - name: Code Coverage Annotation
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         uses: ggilder/codecoverage@47c83daaf1d5a3190cad56363baf459c59114170 # v1
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
