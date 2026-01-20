@@ -762,3 +762,34 @@ func TestNewManagerWithEmptyOrgID(t *testing.T) {
 		t.Errorf("Expected empty orgID, got %s", manager.orgID)
 	}
 }
+
+func TestInitializeAccountTokenMapEmpty(t *testing.T) {
+	client := pantheon.NewClient(false)
+	tokens := []string{}
+	environment := testEnvLive
+	sites := []pantheon.SiteMetrics{}
+	coll := collector.NewPantheonCollector(sites)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0, "")
+
+	// Should complete without panic even with no tokens
+	manager.InitializeAccountTokenMap()
+
+	if len(manager.accountTokenMap) != 0 {
+		t.Errorf("Expected 0 accounts in token map, got %d", len(manager.accountTokenMap))
+	}
+}
+
+func TestInitializeAccountTokenMapWithInvalidTokens(t *testing.T) {
+	client := pantheon.NewClient(false)
+	tokens := []string{"invalid-token-1", "invalid-token-2"}
+	environment := testEnvLive
+	sites := []pantheon.SiteMetrics{}
+	coll := collector.NewPantheonCollector(sites)
+	manager := NewManager(client, tokens, environment, 1*time.Minute, coll, 0, "")
+
+	// Should complete without panic even with invalid tokens (auth will fail)
+	manager.InitializeAccountTokenMap()
+
+	// Since auth fails, the map should remain empty (or have fallback account IDs)
+	// The important thing is that the method doesn't panic
+}

@@ -27,9 +27,7 @@ builds:
       - "7"
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
+      - -X github.com/deviantintegral/pantheon-metrics-prometheus/internal/version.version={{.Version}}
   - id: windows
     main: ./cmd/pantheon-metrics-exporter
     binary: pantheon-metrics-exporter
@@ -42,9 +40,7 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
+      - -X github.com/deviantintegral/pantheon-metrics-prometheus/internal/version.version={{.Version}}
 
 archives:
   - id: default
@@ -85,7 +81,7 @@ checksum:
   algorithm: sha256
 
 snapshot:
-  version_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ .ShortCommit }}{{ if .IsGitDirty }}-dirty{{ end }}"
 
 changelog:
   sort: asc
