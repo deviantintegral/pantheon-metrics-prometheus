@@ -1,11 +1,15 @@
 # Stage 1: Build with GoReleaser
-FROM golang:1.24-alpine AS builder
+FROM golang:1.24-bookworm AS builder
 
 # Install git (required by GoReleaser) and goreleaser
-RUN apk add --no-cache git curl && \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    ca-certificates && \
     curl -sfL https://goreleaser.com/static/run | sh -s -- --version && \
     curl -sfL https://goreleaser.com/static/run > /usr/local/bin/goreleaser && \
-    chmod +x /usr/local/bin/goreleaser
+    chmod +x /usr/local/bin/goreleaser && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -16,14 +20,17 @@ COPY . .
 RUN goreleaser build --snapshot --clean --single-target
 
 # Stage 2: Create minimal runtime image
-FROM alpine:3.23
+FROM debian:13-slim
 
 # Install ca-certificates for HTTPS and wget for healthcheck
-RUN apk --no-cache add ca-certificates wget
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    wget && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN addgroup -g 1000 exporter && \
-    adduser -D -u 1000 -G exporter exporter
+RUN groupadd -g 1000 exporter && \
+    useradd -u 1000 -g exporter -s /bin/false -m exporter
 
 # Copy the binary from builder
 # GoReleaser places binaries in dist/<build-id>/
