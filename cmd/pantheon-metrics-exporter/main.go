@@ -71,14 +71,16 @@ func main() {
 	log.Printf("Refresh manager started (interval: %d minutes)", *refreshInterval)
 
 	// Collect initial metrics in background goroutine (using pre-fetched site lists)
+	// Metrics are updated incrementally as each site is processed
 	go func() {
 		log.Printf("Starting initial metrics collection in background...")
-		allSiteMetrics := app.CollectAllMetricsWithSites(ctx, client, tokens, *environment, preFetchedSites, *siteLimit)
-
-		if len(allSiteMetrics) > 0 {
-			log.Printf("Initial metrics collection complete: %d sites with metrics", len(allSiteMetrics))
-			pantheonCollector.UpdateSites(allSiteMetrics)
+		// Update collector incrementally as each site's metrics are fetched
+		onMetricsFetched := func(accountID, siteName string, metricsData map[string]pantheon.MetricData) {
+			pantheonCollector.UpdateSiteMetrics(accountID, siteName, metricsData)
 		}
+		allSiteMetrics := app.CollectAllMetricsWithSites(ctx, client, tokens, *environment, preFetchedSites, *siteLimit, onMetricsFetched)
+
+		log.Printf("Initial metrics collection complete: %d sites with metrics", len(allSiteMetrics))
 	}()
 
 	// Start server with timeouts
