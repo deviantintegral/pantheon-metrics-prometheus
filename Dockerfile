@@ -1,19 +1,19 @@
-# Stage 1: Build the Go application
+# Stage 1: Build with GoReleaser
 FROM golang:1.24-alpine AS builder
+
+# Install git (required by GoReleaser) and goreleaser
+RUN apk add --no-cache git curl && \
+    curl -sfL https://goreleaser.com/static/run | sh -s -- --version && \
+    curl -sfL https://goreleaser.com/static/run > /usr/local/bin/goreleaser && \
+    chmod +x /usr/local/bin/goreleaser
 
 WORKDIR /app
 
-# Copy go mod files
-COPY go.mod go.sum ./
+# Copy all source files
+COPY . .
 
-# Download dependencies
-RUN go mod download
-
-# Copy source code
-COPY *.go ./
-
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o pantheon-metrics-exporter .
+# Build using goreleaser snapshot for current architecture
+RUN goreleaser build --snapshot --clean --single-target
 
 # Stage 2: Create minimal runtime image
 FROM alpine:3.23
@@ -26,7 +26,8 @@ RUN addgroup -g 1000 exporter && \
     adduser -D -u 1000 -G exporter exporter
 
 # Copy the binary from builder
-COPY --from=builder /app/pantheon-metrics-exporter /usr/local/bin/pantheon-metrics-exporter
+# GoReleaser places binaries in dist/<build-id>/
+COPY --from=builder /app/dist/pantheon-metrics-exporter_linux_*/pantheon-metrics-exporter /usr/local/bin/pantheon-metrics-exporter
 
 # Switch to non-root user
 USER exporter
