@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/deviantintegral/terminus-golang/pkg/version"
 	"github.com/google/uuid"
 )
 
@@ -30,11 +31,12 @@ const (
 
 // Client is the HTTP client for the Pantheon API
 type Client struct {
-	baseURL    string
-	httpClient *http.Client
-	userAgent  string
-	token      string
-	logger     Logger
+	baseURL        string
+	httpClient     *http.Client
+	userAgent      string
+	token          string
+	logger         Logger
+	tokenRefresher TokenRefresher
 }
 
 // Logger is an interface for logging
@@ -43,6 +45,17 @@ type Logger interface {
 	Info(msg string, args ...interface{})
 	Warn(msg string, args ...interface{})
 	Error(msg string, args ...interface{})
+}
+
+// TokenRefresher is an interface for refreshing authentication tokens
+// It is used to automatically renew session tokens when they expire or
+// when the API returns a 401 Unauthorized error.
+type TokenRefresher interface {
+	// RefreshToken attempts to refresh the authentication token.
+	// It should return the new token on success, or an error if the refresh fails.
+	// The implementation is responsible for using the machine token to obtain
+	// a new session token.
+	RefreshToken(ctx context.Context) (string, error)
 }
 
 // ClientOption is a function that configures a Client
@@ -55,8 +68,8 @@ func NewClient(options ...ClientOption) *Client {
 		httpClient: &http.Client{
 			Timeout: DefaultTimeout,
 		},
-		userAgent: fmt.Sprintf("Terminus-Go/0.0.0 (go_version=%s; os=%s; arch=%s)",
-			runtime.Version(), runtime.GOOS, runtime.GOARCH),
+		userAgent: fmt.Sprintf("Terminus-Go/%s (go_version=%s; os=%s; arch=%s)",
+			version.String(), runtime.Version(), runtime.GOOS, runtime.GOARCH),
 	}
 
 	for _, opt := range options {
@@ -94,9 +107,29 @@ func WithHTTPClient(httpClient *http.Client) ClientOption {
 	}
 }
 
+// WithUserAgent sets a custom User-Agent header.
+// This allows downstream applications using this library to identify themselves.
+func WithUserAgent(userAgent string) ClientOption {
+	return func(c *Client) {
+		c.userAgent = userAgent
+	}
+}
+
+// WithTokenRefresher sets a token refresher for automatic token renewal
+func WithTokenRefresher(refresher TokenRefresher) ClientOption {
+	return func(c *Client) {
+		c.tokenRefresher = refresher
+	}
+}
+
 // SetToken updates the authentication token
 func (c *Client) SetToken(token string) {
 	c.token = token
+}
+
+// SetTokenRefresher sets a token refresher for automatic token renewal
+func (c *Client) SetTokenRefresher(refresher TokenRefresher) {
+	c.tokenRefresher = refresher
 }
 
 // Request makes an HTTP request to the API with retry logic
@@ -154,9 +187,12 @@ func (c *Client) Request(ctx context.Context, method, path string, body interfac
 }
 
 // doWithRetry executes an HTTP request with exponential backoff retry logic
+// It also handles 401 Unauthorized errors by attempting to refresh the token
+// and retrying the request once.
 func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 	var resp *http.Response
 	var err error
+	tokenRefreshAttempted := false
 
 	for attempt := 0; attempt <= MaxRetries; attempt++ {
 		// Clone the request body for retries
@@ -173,10 +209,41 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 			if resp.StatusCode >= 400 {
 				body, _ := io.ReadAll(resp.Body)
 				_ = resp.Body.Close()
-				return nil, &Error{
+				apiErr := &Error{
 					StatusCode: resp.StatusCode,
 					Message:    string(body),
 				}
+
+				// Handle 401 Unauthorized with token refresh
+				if resp.StatusCode == http.StatusUnauthorized &&
+					c.tokenRefresher != nil &&
+					!tokenRefreshAttempted {
+					tokenRefreshAttempted = true
+					if c.logger != nil {
+						c.logger.Debug("Received 401 Unauthorized, attempting token refresh")
+					}
+
+					// Get context from request
+					ctx := req.Context()
+					newToken, refreshErr := c.tokenRefresher.RefreshToken(ctx)
+					if refreshErr != nil {
+						if c.logger != nil {
+							c.logger.Warn("Token refresh failed: %v", refreshErr)
+						}
+						return nil, apiErr
+					}
+
+					// Update client token and retry
+					c.token = newToken
+					req.Header.Set("Authorization", "Bearer "+newToken)
+					c.restoreRequestBody(req, bodyReader)
+					if c.logger != nil {
+						c.logger.Debug("Token refreshed successfully, retrying request")
+					}
+					continue
+				}
+
+				return nil, apiErr
 			}
 			return resp, nil
 		}
@@ -459,6 +526,14 @@ func IsNotFound(err error) bool {
 func IsConflict(err error) bool {
 	if apiErr, ok := err.(*Error); ok {
 		return apiErr.StatusCode == http.StatusConflict
+	}
+	return false
+}
+
+// IsUnauthorized returns true if the error is a 401 Unauthorized
+func IsUnauthorized(err error) bool {
+	if apiErr, ok := err.(*Error); ok {
+		return apiErr.StatusCode == http.StatusUnauthorized
 	}
 	return false
 }
