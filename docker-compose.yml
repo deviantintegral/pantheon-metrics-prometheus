@@ -8,7 +8,12 @@ services:
       - "8080:8080"
     environment:
       - PANTHEON_MACHINE_TOKENS=${PANTHEON_MACHINE_TOKENS}
-    command: ["-env=${PANTHEON_ENV:-live}", "-port=8080", "-refreshInterval=${REFRESH_INTERVAL:-60}"]
+    command:
+      - "-env=${PANTHEON_ENV:-live}"
+      - "-port=8080"
+      - "-refreshInterval=${REFRESH_INTERVAL:-60}"
+      - "-siteLimit=${SITE_LIMIT:-0}"
+      - "-orgID=${ORG_ID:-}"
     restart: unless-stopped
     networks:
       - monitoring

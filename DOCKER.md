@@ -76,6 +76,12 @@ PANTHEON_ENV=live
 # Optional: Refresh interval in minutes (default: 60)
 REFRESH_INTERVAL=60
 
+# Optional: Maximum number of sites to query (default: 0 = no limit)
+SITE_LIMIT=0
+
+# Optional: Limit metrics to sites from this organization ID (default: empty = all sites)
+ORG_ID=
+
 # Optional: Grafana admin credentials (default: admin/admin)
 GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=admin
@@ -95,6 +101,24 @@ PANTHEON_ENV=test
 # Monitor a multidev environment
 PANTHEON_ENV=my-multidev
 ```
+
+### Filtering Sites
+
+You can limit which sites are monitored using the `SITE_LIMIT` and `ORG_ID` variables:
+
+```bash
+# Limit to first 50 sites (useful for testing)
+SITE_LIMIT=50
+
+# Monitor only sites from a specific organization
+ORG_ID=your-org-uuid
+
+# Combine both filters
+SITE_LIMIT=100
+ORG_ID=your-org-uuid
+```
+
+These filters help reduce API usage and focus on specific sites or organizations.
 
 ## Docker Compose Commands
 

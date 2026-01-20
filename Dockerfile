@@ -34,7 +34,7 @@ RUN groupadd -g 1000 exporter && \
 
 # Copy the binary from builder
 # GoReleaser places binaries in dist/<build-id>/
-COPY --from=builder /app/dist/pantheon-metrics-exporter_linux_*/pantheon-metrics-exporter /usr/local/bin/pantheon-metrics-exporter
+COPY --from=builder /app/dist/default_linux*/pantheon-metrics-exporter /usr/local/bin/pantheon-metrics-exporter
 
 # Switch to non-root user
 USER exporter
