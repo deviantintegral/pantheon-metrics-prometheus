@@ -329,7 +329,7 @@ func TestCollectAllMetricsEmptyTokens(t *testing.T) {
 	tokens := []string{}
 	environment := testEnvLive
 
-	result := CollectAllMetrics(ctx, client, tokens, environment, 0, "")
+	result := CollectAllMetrics(ctx, client, tokens, environment, 0, "", nil)
 
 	if len(result) != 0 {
 		t.Errorf("Expected 0 sites with empty tokens, got %d", len(result))
@@ -345,7 +345,7 @@ func TestCollectAllMetricsInvalidTokens(t *testing.T) {
 	environment := testEnvLive
 
 	// This should complete without panic, handling auth failures gracefully
-	result := CollectAllMetrics(ctx, client, tokens, environment, 0, "")
+	result := CollectAllMetrics(ctx, client, tokens, environment, 0, "", nil)
 
 	// With invalid tokens, we expect 0 sites
 	if len(result) != 0 {
@@ -361,7 +361,7 @@ func TestCollectAllMetricsWithSitesEmptyTokens(t *testing.T) {
 	environment := testEnvLive
 	preFetchedSites := map[string]AccountSiteData{}
 
-	result := CollectAllMetricsWithSites(ctx, client, tokens, environment, preFetchedSites, 0)
+	result := CollectAllMetricsWithSites(ctx, client, tokens, environment, preFetchedSites, 0, nil)
 
 	if len(result) != 0 {
 		t.Errorf("Expected 0 sites with empty tokens, got %d", len(result))
@@ -376,7 +376,7 @@ func TestCollectAllMetricsWithSitesMissingToken(t *testing.T) {
 	environment := testEnvLive
 	preFetchedSites := map[string]AccountSiteData{} // Empty, no matching token
 
-	result := CollectAllMetricsWithSites(ctx, client, tokens, environment, preFetchedSites, 0)
+	result := CollectAllMetricsWithSites(ctx, client, tokens, environment, preFetchedSites, 0, nil)
 
 	if len(result) != 0 {
 		t.Errorf("Expected 0 sites with missing token data, got %d", len(result))
@@ -404,7 +404,7 @@ func TestCollectAllMetricsWithSitesWithData(t *testing.T) {
 	}
 
 	// This will fail to fetch metrics (invalid token) but should use the pre-fetched data
-	result := CollectAllMetricsWithSites(ctx, client, tokens, environment, preFetchedSites, 0)
+	result := CollectAllMetricsWithSites(ctx, client, tokens, environment, preFetchedSites, 0, nil)
 
 	// With invalid token, metrics fetch will fail, so result should be empty
 	if len(result) != 0 {
@@ -421,7 +421,7 @@ func TestProcessAccountSiteListEmpty(t *testing.T) {
 	environment := testEnvLive
 	siteList := map[string]pantheon.SiteListEntry{}
 
-	siteMetrics, successCount, failCount := processAccountSiteList(ctx, client, token, accountID, environment, siteList, 0, 0)
+	siteMetrics, successCount, failCount := processAccountSiteList(ctx, client, token, accountID, environment, siteList, 0, 0, nil)
 
 	if len(siteMetrics) != 0 {
 		t.Errorf("Expected 0 site metrics with empty site list, got %d", len(siteMetrics))
@@ -456,7 +456,7 @@ func TestProcessAccountSiteListWithSites(t *testing.T) {
 	}
 
 	// This will fail to fetch metrics (invalid token) but should not panic
-	siteMetrics, successCount, failCount := processAccountSiteList(ctx, client, token, accountID, environment, siteList, 0, 0)
+	siteMetrics, successCount, failCount := processAccountSiteList(ctx, client, token, accountID, environment, siteList, 0, 0, nil)
 
 	// Expect 0 successful, 2 failed (can't fetch metrics with invalid token)
 	if len(siteMetrics) != 0 {
@@ -478,7 +478,7 @@ func TestCollectAccountMetricsInvalidToken(t *testing.T) {
 	environment := testEnvLive
 
 	// This should complete without panic, handling auth failure gracefully
-	siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment, 0, 0, "")
+	siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment, 0, 0, "", nil)
 
 	// With invalid token, we expect 0 metrics (auth will fail)
 	if len(siteMetrics) != 0 {
@@ -520,7 +520,7 @@ func TestCollectAllMetricsWithOrgID(t *testing.T) {
 	orgID := "org-uuid-12345"
 
 	// This should complete without panic, handling auth failure gracefully
-	result := CollectAllMetrics(ctx, client, tokens, environment, 0, orgID)
+	result := CollectAllMetrics(ctx, client, tokens, environment, 0, orgID, nil)
 
 	// With invalid tokens, we expect 0 sites
 	if len(result) != 0 {
@@ -537,7 +537,7 @@ func TestCollectAccountMetricsWithOrgID(t *testing.T) {
 	orgID := "org-uuid-12345"
 
 	// This should complete without panic, handling auth failure gracefully
-	siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment, 0, 0, orgID)
+	siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment, 0, 0, orgID, nil)
 
 	// With invalid token, we expect 0 metrics (auth will fail)
 	if len(siteMetrics) != 0 {

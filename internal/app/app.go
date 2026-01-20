@@ -18,6 +18,10 @@ import (
 // InitialMetricsDuration is used for the first metrics fetch (28 days of history).
 const InitialMetricsDuration = "28d"
 
+// MetricsUpdateFunc is a callback function called when metrics are fetched for a site.
+// It receives the account ID, site name, and the fetched metrics data.
+type MetricsUpdateFunc func(accountID, siteName string, metricsData map[string]pantheon.MetricData)
+
 // AccountSiteData holds pre-fetched site data for an account
 type AccountSiteData struct {
 	AccountID string
@@ -38,7 +42,8 @@ func createSiteMetrics(siteName, siteID, accountID, planName string, metricsData
 
 // processAccountSiteList processes a list of sites for an account and collects metrics
 // siteLimit and currentCount are used to limit the total number of sites processed globally.
-func processAccountSiteList(ctx context.Context, client *pantheon.Client, token, accountID, environment string, siteList map[string]pantheon.SiteListEntry, siteLimit, currentCount int) ([]pantheon.SiteMetrics, int, int) {
+// If onMetricsFetched is provided, it will be called after each site's metrics are successfully fetched.
+func processAccountSiteList(ctx context.Context, client *pantheon.Client, token, accountID, environment string, siteList map[string]pantheon.SiteListEntry, siteLimit, currentCount int, onMetricsFetched MetricsUpdateFunc) ([]pantheon.SiteMetrics, int, int) {
 	siteMetrics := make([]pantheon.SiteMetrics, 0, len(siteList))
 	successCount := 0
 	failCount := 0
@@ -60,6 +65,11 @@ func processAccountSiteList(ctx context.Context, client *pantheon.Client, token,
 			continue
 		}
 
+		// Call the callback to update metrics incrementally if provided
+		if onMetricsFetched != nil {
+			onMetricsFetched(accountID, site.Name, metricsData)
+		}
+
 		// Create SiteMetrics entry with account label
 		metrics := createSiteMetrics(site.Name, siteID, accountID, site.PlanName, metricsData)
 		siteMetrics = append(siteMetrics, metrics)
@@ -73,7 +83,8 @@ func processAccountSiteList(ctx context.Context, client *pantheon.Client, token,
 // collectAccountMetrics collects metrics for a single account
 // siteLimit and currentCount are used to limit the total number of sites processed globally.
 // If orgID is non-empty, only sites from that organization will be fetched.
-func collectAccountMetrics(ctx context.Context, client *pantheon.Client, token, environment string, siteLimit, currentCount int, orgID string) ([]pantheon.SiteMetrics, int, int) {
+// If onMetricsFetched is provided, it will be called after each site's metrics are successfully fetched.
+func collectAccountMetrics(ctx context.Context, client *pantheon.Client, token, environment string, siteLimit, currentCount int, orgID string, onMetricsFetched MetricsUpdateFunc) ([]pantheon.SiteMetrics, int, int) {
 	var siteMetrics []pantheon.SiteMetrics
 	successCount := 0
 	failCount := 0
@@ -97,7 +108,7 @@ func collectAccountMetrics(ctx context.Context, client *pantheon.Client, token, 
 	log.Printf("Account %s: Found %d sites", accountID, len(siteList))
 
 	// Process all sites
-	siteMetrics, successCount, failCount = processAccountSiteList(ctx, client, token, accountID, environment, siteList, siteLimit, currentCount)
+	siteMetrics, successCount, failCount = processAccountSiteList(ctx, client, token, accountID, environment, siteList, siteLimit, currentCount, onMetricsFetched)
 
 	log.Printf("Account %s: Metrics collection complete: %d successful, %d failed", accountID, successCount, failCount)
 	return siteMetrics, successCount, failCount
@@ -170,7 +181,8 @@ func CollectAllSiteLists(ctx context.Context, client *pantheon.Client, tokens []
 // CollectAllMetrics collects metrics for all accounts (fetches site lists fresh)
 // If siteLimit > 0, only the first siteLimit sites are processed.
 // If orgID is non-empty, only sites from that organization will be returned.
-func CollectAllMetrics(ctx context.Context, client *pantheon.Client, tokens []string, environment string, siteLimit int, orgID string) []pantheon.SiteMetrics {
+// If onMetricsFetched is provided, it will be called after each site's metrics are successfully fetched.
+func CollectAllMetrics(ctx context.Context, client *pantheon.Client, tokens []string, environment string, siteLimit int, orgID string, onMetricsFetched MetricsUpdateFunc) []pantheon.SiteMetrics {
 	var allSiteMetrics []pantheon.SiteMetrics
 	totalSuccessCount := 0
 	totalFailCount := 0
@@ -178,7 +190,7 @@ func CollectAllMetrics(ctx context.Context, client *pantheon.Client, tokens []st
 	for tokenIdx, token := range tokens {
 		log.Printf("Processing account %d/%d", tokenIdx+1, len(tokens))
 
-		siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment, siteLimit, len(allSiteMetrics), orgID)
+		siteMetrics, successCount, failCount := collectAccountMetrics(ctx, client, token, environment, siteLimit, len(allSiteMetrics), orgID, onMetricsFetched)
 		allSiteMetrics = append(allSiteMetrics, siteMetrics...)
 		totalSuccessCount += successCount
 		totalFailCount += failCount
@@ -195,7 +207,8 @@ func CollectAllMetrics(ctx context.Context, client *pantheon.Client, tokens []st
 
 // CollectAllMetricsWithSites collects metrics using pre-fetched site data (avoids duplicate site fetch)
 // If siteLimit > 0, only the first siteLimit sites are processed.
-func CollectAllMetricsWithSites(ctx context.Context, client *pantheon.Client, tokens []string, environment string, preFetchedSites map[string]AccountSiteData, siteLimit int) []pantheon.SiteMetrics {
+// If onMetricsFetched is provided, it will be called after each site's metrics are successfully fetched.
+func CollectAllMetricsWithSites(ctx context.Context, client *pantheon.Client, tokens []string, environment string, preFetchedSites map[string]AccountSiteData, siteLimit int, onMetricsFetched MetricsUpdateFunc) []pantheon.SiteMetrics {
 	var allSiteMetrics []pantheon.SiteMetrics
 	totalSuccessCount := 0
 	totalFailCount := 0
@@ -210,7 +223,7 @@ func CollectAllMetricsWithSites(ctx context.Context, client *pantheon.Client, to
 		}
 
 		// Process sites using the pre-fetched data
-		siteMetrics, successCount, failCount := processAccountSiteList(ctx, client, token, siteData.AccountID, environment, siteData.Sites, siteLimit, len(allSiteMetrics))
+		siteMetrics, successCount, failCount := processAccountSiteList(ctx, client, token, siteData.AccountID, environment, siteData.Sites, siteLimit, len(allSiteMetrics), onMetricsFetched)
 		allSiteMetrics = append(allSiteMetrics, siteMetrics...)
 		totalSuccessCount += successCount
 		totalFailCount += failCount
