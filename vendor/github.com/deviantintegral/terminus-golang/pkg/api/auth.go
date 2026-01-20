@@ -85,7 +85,7 @@ func (s *AuthService) ValidateSession(ctx context.Context, userID string) (bool,
 
 	_, err := s.Whoami(ctx, userID)
 	if err != nil {
-		if IsNotFound(err) || (err != nil && err.Error() == "API error 401") {
+		if IsNotFound(err) || IsUnauthorized(err) {
 			return false, nil
 		}
 		return false, err
