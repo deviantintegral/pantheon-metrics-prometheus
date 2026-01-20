@@ -5,6 +5,14 @@ global:
   scrape_timeout: 30s
   evaluation_interval: 1m
 
+# This setting can use significant memory. We set it high for demonstration
+# purposes, but live sites will likely need this to be 24-48 hours due
+# to the lag in Pantheon's data updates. Another alternative is to use
+# a database like VictoriaMetrics that supports backfilling data.
+storage:
+  tsdb:
+    out_of_order_time_window: 30d
+
 scrape_configs:
   - job_name: 'pantheon-metrics'
     static_configs:
