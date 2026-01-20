@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/version"
 	"github.com/deviantintegral/terminus-golang/pkg/api"
 )
 
@@ -40,13 +41,13 @@ func (sm *SessionManager) Authenticate(ctx context.Context, machineToken string)
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	// Create unauthenticated client for login with debug logging if enabled
+	// Create unauthenticated client for login with custom user agent and debug logging if enabled
 	var client *api.Client
 	if sm.debugEnabled {
 		logger := api.NewLogger(api.VerbosityTrace)
-		client = api.NewClient(api.WithLogger(logger))
+		client = api.NewClient(api.WithUserAgent(version.UserAgent()), api.WithLogger(logger))
 	} else {
-		client = api.NewClient()
+		client = api.NewClient(api.WithUserAgent(version.UserAgent()))
 	}
 
 	// Authenticate with machine token
