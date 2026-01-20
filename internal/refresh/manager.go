@@ -269,8 +269,8 @@ func (rm *Manager) refreshMetricsWithQueue() {
 		}
 
 		sitesToProcess := currentSites[siteIndex:endIndex]
-		log.Printf("Refreshing metrics for %d sites (index %d-%d of %d)",
-			len(sitesToProcess), siteIndex, endIndex-1, len(currentSites))
+		log.Printf("Refreshing metrics for %d sites (sites %d-%d of %d)",
+			len(sitesToProcess), siteIndex+1, endIndex, len(currentSites))
 
 		for _, site := range sitesToProcess {
 			go rm.refreshSiteMetrics(site.Account, site.SiteName, site.SiteID)
