@@ -67,6 +67,7 @@ func main() {
 	refreshIntervalDuration := time.Duration(*refreshInterval) * time.Minute
 	refreshManager := app.StartRefreshManager(client, tokens, *environment, refreshIntervalDuration, pantheonCollector, *siteLimit, *orgID)
 	refreshManager.InitializeDiscoveredSites()
+	refreshManager.InitializeAccountTokenMap()
 	log.Printf("Refresh manager started (interval: %d minutes)", *refreshInterval)
 
 	// Collect initial metrics in background goroutine (using pre-fetched site lists)

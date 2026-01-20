@@ -69,6 +69,22 @@ func (rm *Manager) InitializeDiscoveredSites() {
 	log.Printf("Initialized with %d discovered sites", len(rm.discoveredSites))
 }
 
+// InitializeAccountTokenMap authenticates all tokens and populates the account-to-token mapping.
+// This must be called before Start() to ensure tokens are available for metrics refresh.
+func (rm *Manager) InitializeAccountTokenMap() {
+	ctx := context.Background()
+	for _, token := range rm.tokens {
+		accountID, err := rm.client.Authenticate(ctx, token)
+		if err != nil {
+			accountID = pantheon.GetAccountID(token)
+			log.Printf("Warning: Failed to authenticate account %s during token map initialization: %v", accountID, err)
+			continue
+		}
+		rm.accountTokenMap[accountID] = token
+	}
+	log.Printf("Initialized account token map with %d accounts", len(rm.accountTokenMap))
+}
+
 // Start begins the periodic refresh process
 func (rm *Manager) Start() {
 	// Start site list refresh (every refresh interval)
