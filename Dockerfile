@@ -1,5 +1,5 @@
 # Stage 1: Build with GoReleaser
-FROM golang:1.24-bookworm AS builder
+FROM golang:1.25-bookworm AS builder
 
 # Install git (required by GoReleaser) and goreleaser
 RUN apt-get update && apt-get install -y --no-install-recommends \
