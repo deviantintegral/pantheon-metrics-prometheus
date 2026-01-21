@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.2.1...v0.3.0) (2026-01-21)
+
+
+### Features
+
+* **collector:** use current request time for latest metric timestamp ([e528753](https://github.com/deviantintegral/pantheon-metrics-prometheus/commit/e5287530b9cea9f636da824ee56b88c0b50f79aa))
+
 ## [0.2.1](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.2.0...v0.2.1) (2026-01-21)
 
 
