@@ -131,9 +131,19 @@ release:
 
     ## Installation
 
+    ### Docker (Recommended)
+
+    ```bash
+    docker pull ghcr.io/deviantintegral/pantheon-metrics-prometheus:{{ .Version }}
+    ```
+
+    Multi-architecture images are available for `linux/amd64` and `linux/arm64`.
+
+    ### Binary
+
     Download the appropriate binary for your platform from the assets below.
 
-    ### Verify checksums
+    #### Verify checksums
     ```bash
     sha256sum -c checksums.txt
     ```
