@@ -69,7 +69,6 @@ jobs:
 
   build:
     name: Build and Docker
-    needs: [test, lint]
     uses: ./.github/workflows/build-release.yml
     with:
       publish: false
