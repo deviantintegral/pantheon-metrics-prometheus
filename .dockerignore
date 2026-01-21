@@ -22,9 +22,6 @@ Dockerfile
 prometheus/
 grafana/
 
-# Build artifacts
-pantheon-metrics-exporter
-
 # IDE
 .vscode
 .idea
