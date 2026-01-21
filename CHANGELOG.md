@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.2.0...v0.2.1) (2026-01-21)
+
+
+### Bug Fixes
+
+* **grafana:** single stat metric totals ([cac79f0](https://github.com/deviantintegral/pantheon-metrics-prometheus/commit/cac79f01da8af0e65eadef3783ca5505d81bfacc))
+
 ## [0.2.0](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.1.0...v0.2.0) (2026-01-20)
 
 
