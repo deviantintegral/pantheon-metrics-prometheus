@@ -2,17 +2,14 @@
 # This Dockerfile is used by GoReleaser to create minimal production images
 # with pre-built binaries. For local development, use the main Dockerfile.
 
-FROM debian:13-slim
+FROM alpine:3.23
 
 # Install ca-certificates for HTTPS and wget for healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    wget && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ca-certificates wget
 
 # Create non-root user
-RUN groupadd -g 1000 exporter && \
-    useradd -u 1000 -g exporter -s /bin/false -m exporter
+RUN addgroup -g 1000 exporter && \
+    adduser -u 1000 -G exporter -s /bin/false -D -H exporter
 
 # Copy the pre-built binary from GoReleaser
 COPY pantheon-metrics-exporter /usr/local/bin/pantheon-metrics-exporter
