@@ -105,7 +105,7 @@ func TestCollect(t *testing.T) {
 
 	collector := NewPantheonCollector(sites)
 
-	ch := make(chan prometheus.Metric, 20)
+	ch := make(chan prometheus.Metric, 25)
 	collector.Collect(ch)
 	close(ch)
 
@@ -115,7 +115,8 @@ func TestCollect(t *testing.T) {
 		count++
 	}
 
-	// Should have 10 metrics (5 metric types × 2 timestamps)
+	// Should have 10 metrics (5 metric types × 1 historical timestamp + 5 latest without timestamp)
+	// The latest timestamp is NOT emitted with a timestamp, only without one
 	if count != 10 {
 		t.Errorf("Expected 10 metrics, got %d", count)
 	}
@@ -164,7 +165,7 @@ func TestCollectWithMultipleSites(t *testing.T) {
 
 	collector := NewPantheonCollector(sites)
 
-	ch := make(chan prometheus.Metric, 20)
+	ch := make(chan prometheus.Metric, 25)
 	collector.Collect(ch)
 	close(ch)
 
@@ -174,7 +175,8 @@ func TestCollectWithMultipleSites(t *testing.T) {
 		count++
 	}
 
-	// Should have 10 metrics (5 metric types × 2 sites with 1 timestamp each)
+	// Should have 10 metrics (5 latest without timestamp × 2 sites)
+	// Each site has only 1 timestamp, which is the latest, so no historical metrics are emitted
 	if count != 10 {
 		t.Errorf("Expected 10 metrics, got %d", count)
 	}
@@ -245,7 +247,7 @@ func TestCollectWithInvalidCacheHitRatio(t *testing.T) {
 
 	collector := NewPantheonCollector(sites)
 
-	ch := make(chan prometheus.Metric, 10)
+	ch := make(chan prometheus.Metric, 20)
 	collector.Collect(ch)
 	close(ch)
 
@@ -255,7 +257,7 @@ func TestCollectWithInvalidCacheHitRatio(t *testing.T) {
 		count++
 	}
 
-	// Should have 5 metrics (one for each metric type)
+	// Should have 5 metrics (only the latest without timestamp, no historical)
 	if count != 5 {
 		t.Errorf("Expected 5 metrics, got %d", count)
 	}
@@ -550,7 +552,7 @@ func TestCollectWithNoDataCacheHitRatio(t *testing.T) {
 
 	collector := NewPantheonCollector(sites)
 
-	ch := make(chan prometheus.Metric, 10)
+	ch := make(chan prometheus.Metric, 20)
 	collector.Collect(ch)
 	close(ch)
 
@@ -560,7 +562,7 @@ func TestCollectWithNoDataCacheHitRatio(t *testing.T) {
 		count++
 	}
 
-	// Should have 5 metrics (one for each metric type)
+	// Should have 5 metrics (only the latest without timestamp, no historical)
 	if count != 5 {
 		t.Errorf("Expected 5 metrics, got %d", count)
 	}
@@ -591,7 +593,7 @@ func TestCollectWithNoCacheHitRatioPercentSign(t *testing.T) {
 
 	collector := NewPantheonCollector(sites)
 
-	ch := make(chan prometheus.Metric, 10)
+	ch := make(chan prometheus.Metric, 20)
 	collector.Collect(ch)
 	close(ch)
 
@@ -601,7 +603,7 @@ func TestCollectWithNoCacheHitRatioPercentSign(t *testing.T) {
 		count++
 	}
 
-	// Should have 5 metrics (one for each metric type)
+	// Should have 5 metrics (only the latest without timestamp, no historical)
 	if count != 5 {
 		t.Errorf("Expected 5 metrics, got %d", count)
 	}
@@ -695,7 +697,7 @@ func TestCollectWithZeroValues(t *testing.T) {
 
 	collector := NewPantheonCollector(sites)
 
-	ch := make(chan prometheus.Metric, 10)
+	ch := make(chan prometheus.Metric, 20)
 	collector.Collect(ch)
 	close(ch)
 
@@ -705,6 +707,7 @@ func TestCollectWithZeroValues(t *testing.T) {
 		count++
 	}
 
+	// Should have 5 metrics (only the latest without timestamp, no historical)
 	if count != 5 {
 		t.Errorf("Expected 5 metrics with zero values, got %d", count)
 	}
@@ -735,7 +738,7 @@ func TestCollectWithLargeNumbers(t *testing.T) {
 
 	collector := NewPantheonCollector(sites)
 
-	ch := make(chan prometheus.Metric, 10)
+	ch := make(chan prometheus.Metric, 20)
 	collector.Collect(ch)
 	close(ch)
 
@@ -744,6 +747,7 @@ func TestCollectWithLargeNumbers(t *testing.T) {
 		count++
 	}
 
+	// Should have 5 metrics (only the latest without timestamp, no historical)
 	if count != 5 {
 		t.Errorf("Expected 5 metrics, got %d", count)
 	}
@@ -774,7 +778,7 @@ func TestCollectWithNegativeTimestamp(t *testing.T) {
 
 	collector := NewPantheonCollector(sites)
 
-	ch := make(chan prometheus.Metric, 10)
+	ch := make(chan prometheus.Metric, 20)
 	collector.Collect(ch)
 	close(ch)
 
@@ -784,6 +788,7 @@ func TestCollectWithNegativeTimestamp(t *testing.T) {
 		count++
 	}
 
+	// Should have 5 metrics (only the latest without timestamp, no historical)
 	if count != 5 {
 		t.Errorf("Expected 5 metrics, got %d", count)
 	}

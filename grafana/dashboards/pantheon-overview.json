@@ -55,13 +55,13 @@
       "id": 1,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
-            "sum"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -77,8 +77,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "editorMode": "builder",
-          "expr": "sum(pantheon_visits{name=~\"$siteName\"})",
+          "editorMode": "code",
+          "expr": "sum(sum_over_time(max_over_time(pantheon_visits{name=~\"$siteName\"}[1d])[$__range:1d]))",
           "range": true,
           "refId": "A"
         }
@@ -126,7 +126,7 @@
         "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
-            "sum"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -142,8 +142,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "editorMode": "builder",
-          "expr": "sum(pantheon_pages_served{name=~\"$siteName\"})",
+          "editorMode": "code",
+          "expr": "sum(sum_over_time(max_over_time(pantheon_pages_served{name=~\"$siteName\"}[1d])[$__range:1d]))",
           "range": true,
           "refId": "A"
         }
@@ -816,7 +816,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum by(name) (sum_over_time(pantheon_visits{name=~\"$siteName\"}[$__range]))",
+          "expr": "sum by (name) (sum_over_time(max_over_time(pantheon_visits{name=~\"$siteName\"}[1d])[$__range:1d]))",
           "format": "table",
           "instant": true,
           "range": false,
