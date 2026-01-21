@@ -76,8 +76,33 @@ func (c *PantheonCollector) Collect(ch chan<- prometheus.Metric) {
 	defer c.mu.RUnlock()
 
 	for _, site := range c.sites {
+		// First pass: find the most recent timestamp
+		var latestTimestamp int64
+		var latestTimestampStr string
+		var latestData pantheon.MetricData
+		hasData := false
+
 		for timestampStr, data := range site.MetricsData {
-			// Convert Unix timestamp string to time.Time
+			timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
+			if err != nil {
+				continue
+			}
+			if !hasData || timestamp > latestTimestamp {
+				latestTimestamp = timestamp
+				latestTimestampStr = timestampStr
+				latestData = data
+				hasData = true
+			}
+		}
+
+		// Second pass: emit all historical metrics EXCEPT the latest one
+		// (the latest will be emitted without a timestamp at the end)
+		for timestampStr, data := range site.MetricsData {
+			// Skip the latest timestamp - it will be emitted without timestamp below
+			if timestampStr == latestTimestampStr {
+				continue
+			}
+
 			timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
 			if err != nil {
 				log.Printf("Error parsing timestamp %s: %v", timestampStr, err)
@@ -85,22 +110,7 @@ func (c *PantheonCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 			ts := time.Unix(timestamp, 0)
 
-			// Parse cache hit ratio (remove % sign and convert to float)
-			// Handle "--" as a special "no data" indicator from terminus-golang
-			// (Pantheon API doesn't return cache_hit_ratio; it's calculated by the library,
-			// which uses "--" when pages_served is 0, matching Terminus CLI behavior)
-			var cacheHitRatioVal float64
-			if data.CacheHitRatio == "--" {
-				cacheHitRatioVal = 0
-			} else {
-				cacheHitRatioStr := strings.TrimSuffix(data.CacheHitRatio, "%")
-				var err error
-				cacheHitRatioVal, err = strconv.ParseFloat(cacheHitRatioStr, 64)
-				if err != nil {
-					log.Printf("Error parsing cache hit ratio %s: %v", data.CacheHitRatio, err)
-					cacheHitRatioVal = 0
-				}
-			}
+			cacheHitRatioVal := c.parseCacheHitRatio(data.CacheHitRatio)
 
 			// Create metrics with labels and timestamps
 			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
@@ -138,7 +148,66 @@ func (c *PantheonCollector) Collect(ch chan<- prometheus.Metric) {
 				site.SiteName, site.Label, site.PlanName, site.Account,
 			))
 		}
+
+		// Emit the most recent metric with the current request time so consumers
+		// can pull current data without gaps in their time series
+		if hasData {
+			now := time.Now()
+			cacheHitRatioVal := c.parseCacheHitRatio(latestData.CacheHitRatio)
+
+			ch <- prometheus.NewMetricWithTimestamp(now, prometheus.MustNewConstMetric(
+				c.visits,
+				prometheus.GaugeValue,
+				float64(latestData.Visits),
+				site.SiteName, site.Label, site.PlanName, site.Account,
+			))
+
+			ch <- prometheus.NewMetricWithTimestamp(now, prometheus.MustNewConstMetric(
+				c.pagesServed,
+				prometheus.GaugeValue,
+				float64(latestData.PagesServed),
+				site.SiteName, site.Label, site.PlanName, site.Account,
+			))
+
+			ch <- prometheus.NewMetricWithTimestamp(now, prometheus.MustNewConstMetric(
+				c.cacheHits,
+				prometheus.GaugeValue,
+				float64(latestData.CacheHits),
+				site.SiteName, site.Label, site.PlanName, site.Account,
+			))
+
+			ch <- prometheus.NewMetricWithTimestamp(now, prometheus.MustNewConstMetric(
+				c.cacheMisses,
+				prometheus.GaugeValue,
+				float64(latestData.CacheMisses),
+				site.SiteName, site.Label, site.PlanName, site.Account,
+			))
+
+			ch <- prometheus.NewMetricWithTimestamp(now, prometheus.MustNewConstMetric(
+				c.cacheHitRatio,
+				prometheus.GaugeValue,
+				cacheHitRatioVal,
+				site.SiteName, site.Label, site.PlanName, site.Account,
+			))
+		}
 	}
+}
+
+// parseCacheHitRatio parses cache hit ratio string to float64.
+// Handles "--" as a special "no data" indicator from terminus-golang
+// (Pantheon API doesn't return cache_hit_ratio; it's calculated by the library,
+// which uses "--" when pages_served is 0, matching Terminus CLI behavior)
+func (c *PantheonCollector) parseCacheHitRatio(ratio string) float64 {
+	if ratio == "--" {
+		return 0
+	}
+	cacheHitRatioStr := strings.TrimSuffix(ratio, "%")
+	cacheHitRatioVal, err := strconv.ParseFloat(cacheHitRatioStr, 64)
+	if err != nil {
+		log.Printf("Error parsing cache hit ratio %s: %v", ratio, err)
+		return 0
+	}
+	return cacheHitRatioVal
 }
 
 // UpdateSites updates the sites in the collector (thread-safe)
