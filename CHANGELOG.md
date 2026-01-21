@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.3.0...v0.4.0) (2026-01-21)
+
+
+### Features
+
+* **docker:** add GHCR publishing for releases ([286e411](https://github.com/deviantintegral/pantheon-metrics-prometheus/commit/286e411ccde374ed9e30a147566e630e55a9a37b))
+
 ## [0.3.0](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.2.1...v0.3.0) (2026-01-21)
 
 
