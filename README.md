@@ -13,10 +13,8 @@ A Go application that fetches Pantheon site metrics using the Terminus CLI and e
 
 - **Multi-account support**: Monitor sites across multiple Pantheon accounts simultaneously
 - **Organization filtering**: Optionally limit metrics to sites from a specific organization
-- Automatically discovers all sites using the Pantheon API
-- Fetches metrics for all accessible sites
 - Exposes metrics via HTTP for Prometheus scraping
-- Includes historical timestamps for each metric
+- Includes available historical metrics for bootstrapping new installations
 - Gracefully handles inaccessible sites and accounts
 - Supports monitoring multiple sites in a single exporter instance
 - Account-based labeling for distinguishing metrics across accounts
@@ -24,8 +22,9 @@ A Go application that fetches Pantheon site metrics using the Terminus CLI and e
 
 ## Prerequisites
 
-- Go 1.24 or later
-- One or more Pantheon machine tokens
+- One or more [Pantheon machine tokens](https://docs.pantheon.io/machine-tokens) with at least the "Developer" role in accounts to monitor.
+- Prometheus, VictoriaMetrics, or similar tool that can ingest metrics in the [Prometheus Exposition Format](https://prometheus.io/docs/instrumenting/exposition_formats/).
+- Grafana or a similar tool to view metrics.
 
 ## Installation
 
@@ -53,7 +52,7 @@ The Grafana instance comes with a pre-loaded "Pantheon Metrics Overview" dashboa
 
 For detailed Docker documentation, see [DOCKER.md](DOCKER.md).
 
-### Option 2: Download Pre-built Binary (Recommended)
+### Option 2: Download Pre-built Binary
 
 Download the latest release for your platform from the [releases page](https://github.com/deviantintegral/pantheon-metrics-prometheus/releases/latest).
 
@@ -69,7 +68,32 @@ tar -xzf pantheon-metrics-prometheus_VERSION_linux_x86_64.tar.gz
 chmod +x pantheon-metrics-exporter
 ```
 
-### Option 3: Build from Source
+### Option 3: Use the Docker/OCI Container
+
+Here is a sample `docker-compose.yaml` snippet:
+
+```yaml
+  pantheon-exporter:
+    image: ghcr.io/deviantintegral/pantheon-metrics-prometheus:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - PANTHEON_MACHINE_TOKENS=<INSERT TOKEN HERE>
+    command:
+      - "-env=live"
+      - "-port=8080"
+    restart: unless-stopped
+    networks:
+      - vm_net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+```
+
+### Option 4: Build from Source
 
 ```bash
 go build -o pantheon-metrics-exporter ./cmd/pantheon-metrics-exporter
