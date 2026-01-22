@@ -24,7 +24,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "${ds_prometheus}"
       },
       "description": "Total visits across all Pantheon sites",
       "fieldConfig": {
@@ -75,7 +75,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "editorMode": "code",
           "expr": "sum(sum_over_time(max_over_time(pantheon_visits_total{site_id=~\"$siteName\"}[1d])[$__range:1d]))",
@@ -89,7 +89,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "${ds_prometheus}"
       },
       "description": "Total pages served across all sites",
       "fieldConfig": {
@@ -140,7 +140,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "editorMode": "code",
           "expr": "sum(sum_over_time(max_over_time(pantheon_pages_served_total{site_id=~\"$siteName\"}[1d])[$__range:1d]))",
@@ -154,7 +154,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "${ds_prometheus}"
       },
       "description": "Average cache hit ratio across all sites",
       "fieldConfig": {
@@ -213,7 +213,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "editorMode": "builder",
           "expr": "avg(pantheon_cache_hit_ratio{site_id=~\"$siteName\"})",
@@ -227,7 +227,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "${ds_prometheus}"
       },
       "description": "Number of sites being monitored",
       "fieldConfig": {
@@ -278,7 +278,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "expr": "count(count by (site_id) (pantheon_visits_total))",
           "refId": "A"
@@ -290,7 +290,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "${ds_prometheus}"
       },
       "description": "Visits over time for each site",
       "fieldConfig": {
@@ -377,7 +377,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "editorMode": "builder",
           "expr": "pantheon_visits_total{site_id=~\"$siteName\"}",
@@ -392,7 +392,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "${ds_prometheus}"
       },
       "description": "Pages served over time for each site",
       "fieldConfig": {
@@ -476,7 +476,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "editorMode": "builder",
           "expr": "pantheon_pages_served_total{site_id=~\"$siteName\"}",
@@ -491,7 +491,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "${ds_prometheus}"
       },
       "description": "Cache hit ratio percentage for each site over time",
       "fieldConfig": {
@@ -577,7 +577,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "editorMode": "builder",
           "expr": "pantheon_cache_hit_ratio{site_id=~\"$siteName\"}",
@@ -592,7 +592,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "${ds_prometheus}"
       },
       "description": "Cache hits vs misses comparison",
       "fieldConfig": {
@@ -707,7 +707,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "editorMode": "builder",
           "expr": "pantheon_cache_hits_total{site_id=~\"$siteName\"}",
@@ -718,7 +718,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "editorMode": "builder",
           "expr": "pantheon_cache_misses_total{site_id=~\"$siteName\"}",
@@ -733,7 +733,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "${ds_prometheus}"
       },
       "description": "Sites ranked by total visits",
       "fieldConfig": {
@@ -812,7 +812,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -852,7 +852,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "${ds_prometheus}"
       },
       "description": "Sites ranked by cache efficiency",
       "fieldConfig": {
@@ -942,7 +942,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "${ds_prometheus}"
           },
           "editorMode": "code",
           "expr": "avg by(site_id) (avg_over_time(pantheon_cache_hit_ratio{site_id=~\"$siteName\"}[$__range]))",
@@ -981,11 +981,29 @@
   "templating": {
     "list": [
       {
+        "current": {},
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "ds_prometheus",
+        "options": [],
+        "query": "prometheus",
+        "queryValue": "",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
         "allValue": ".*",
         "allowCustomValue": false,
         "current": {
           "text": "All",
           "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds_prometheus}"
         },
         "definition": "label_values(site_id)",
         "includeAll": true,
