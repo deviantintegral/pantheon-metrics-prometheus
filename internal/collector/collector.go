@@ -29,33 +29,33 @@ func NewPantheonCollector(sites []pantheon.SiteMetrics) *PantheonCollector {
 	return &PantheonCollector{
 		sites: sites,
 		visits: prometheus.NewDesc(
-			"pantheon_visits",
-			"Number of visits",
-			[]string{"name", "label", "plan", "account"},
+			"pantheon_visits_total",
+			"Total number of visits to a Pantheon site",
+			[]string{"site_id", "site_name", "plan", "account"},
 			nil,
 		),
 		pagesServed: prometheus.NewDesc(
-			"pantheon_pages_served",
-			"Number of pages served",
-			[]string{"name", "label", "plan", "account"},
+			"pantheon_pages_served_total",
+			"Total number of pages served by a Pantheon site",
+			[]string{"site_id", "site_name", "plan", "account"},
 			nil,
 		),
 		cacheHits: prometheus.NewDesc(
-			"pantheon_cache_hits",
-			"Number of cache hits",
-			[]string{"name", "label", "plan", "account"},
+			"pantheon_cache_hits_total",
+			"Total number of cache hits for a Pantheon site",
+			[]string{"site_id", "site_name", "plan", "account"},
 			nil,
 		),
 		cacheMisses: prometheus.NewDesc(
-			"pantheon_cache_misses",
-			"Number of cache misses",
-			[]string{"name", "label", "plan", "account"},
+			"pantheon_cache_misses_total",
+			"Total number of cache misses for a Pantheon site",
+			[]string{"site_id", "site_name", "plan", "account"},
 			nil,
 		),
 		cacheHitRatio: prometheus.NewDesc(
 			"pantheon_cache_hit_ratio",
-			"Cache hit ratio as percentage",
-			[]string{"name", "label", "plan", "account"},
+			"Cache hit ratio for a Pantheon site (0-1)",
+			[]string{"site_id", "site_name", "plan", "account"},
 			nil,
 		),
 	}
@@ -193,10 +193,11 @@ func (c *PantheonCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-// parseCacheHitRatio parses cache hit ratio string to float64.
+// parseCacheHitRatio parses cache hit ratio string to float64 ratio (0-1).
 // Handles "--" as a special "no data" indicator from terminus-golang
 // (Pantheon API doesn't return cache_hit_ratio; it's calculated by the library,
-// which uses "--" when pages_served is 0, matching Terminus CLI behavior)
+// which uses "--" when pages_served is 0, matching Terminus CLI behavior).
+// Input is expected as percentage string (e.g., "50%" or "50"), output is ratio (0-1).
 func (c *PantheonCollector) parseCacheHitRatio(ratio string) float64 {
 	if ratio == "--" {
 		return 0
@@ -207,7 +208,8 @@ func (c *PantheonCollector) parseCacheHitRatio(ratio string) float64 {
 		log.Printf("Error parsing cache hit ratio %s: %v", ratio, err)
 		return 0
 	}
-	return cacheHitRatioVal
+	// Convert percentage (0-100) to ratio (0-1) per Prometheus naming conventions
+	return cacheHitRatioVal / 100
 }
 
 // UpdateSites updates the sites in the collector (thread-safe)
