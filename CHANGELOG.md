@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.0](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.4.1...v0.5.0) (2026-01-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* Metric names and labels have been renamed to follow Prometheus naming conventions from https://prometheus.io/docs/practices/naming/
+
+### Features
+
+* align metric and label naming with Prometheus conventions ([ce0e639](https://github.com/deviantintegral/pantheon-metrics-prometheus/commit/ce0e6393902a386e496ca991701790b057ff298a))
+* **grafana:** update dashboard for new metric and label names ([bdb1e58](https://github.com/deviantintegral/pantheon-metrics-prometheus/commit/bdb1e5881de11c59f741c64e0e93d1e3f7fc9c8d))
+
+
+### Bug Fixes
+
+* **grafana:** use datasource variable for portability ([08196f2](https://github.com/deviantintegral/pantheon-metrics-prometheus/commit/08196f2e788f10d5e69ccfe6bd70101b8b2c7297))
+
 ## [0.4.1](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.4.0...v0.4.1) (2026-01-22)
 
 
