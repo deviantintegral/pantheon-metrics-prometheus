@@ -1050,28 +1050,34 @@
           "text": "Live",
           "value": "plan!=\"Sandbox\""
         },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds_prometheus}"
+        },
+        "definition": "query_result(group by (plan) (pantheon_visits_total))",
         "includeAll": false,
         "label": "Plan",
         "name": "plan",
-        "options": [
+        "options": [],
+        "query": {
+          "qryType": 3,
+          "query": "query_result(group by (plan) (pantheon_visits_total))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "/(plan=\"[^\"]+\")/",
+        "sort": 1,
+        "staticOptions": [
           {
-            "selected": true,
             "text": "Live",
             "value": "plan!=\"Sandbox\""
           },
           {
-            "selected": false,
             "text": "All",
             "value": "plan=~\".*\""
-          },
-          {
-            "selected": false,
-            "text": "Sandbox",
-            "value": "plan=\"Sandbox\""
           }
         ],
-        "query": "Live : plan!=\"Sandbox\", All : plan=~\".*\", Sandbox : plan=\"Sandbox\"",
-        "type": "custom"
+        "type": "query"
       }
     ]
   },
