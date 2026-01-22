@@ -78,7 +78,7 @@
             "uid": "${ds_prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time(max_over_time(pantheon_visits_total{site_id=~\"$siteName\"}[1d])[$__range:1d]))",
+          "expr": "sum(sum_over_time(max_over_time(pantheon_visits_total{site_id=~\"$siteName\", account=~\"$account\", ${plan}}[1d])[$__range:1d]))",
           "range": true,
           "refId": "A"
         }
@@ -143,7 +143,7 @@
             "uid": "${ds_prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time(max_over_time(pantheon_pages_served_total{site_id=~\"$siteName\"}[1d])[$__range:1d]))",
+          "expr": "sum(sum_over_time(max_over_time(pantheon_pages_served_total{site_id=~\"$siteName\", account=~\"$account\", ${plan}}[1d])[$__range:1d]))",
           "range": true,
           "refId": "A"
         }
@@ -215,8 +215,8 @@
             "type": "prometheus",
             "uid": "${ds_prometheus}"
           },
-          "editorMode": "code",
-          "expr": "avg(avg_over_time(pantheon_cache_hit_ratio{site_id=~\"$siteName\"}[$__range]))",
+"editorMode": "code",
+          "expr": "avg(avg_over_time(pantheon_cache_hit_ratio{site_id=~\"$siteName\", account=~\"$account\", ${plan}}[$__range]))",
           "range": true,
           "refId": "A"
         }
@@ -280,7 +280,7 @@
             "type": "prometheus",
             "uid": "${ds_prometheus}"
           },
-          "expr": "count(count by (site_id) (pantheon_visits_total))",
+          "expr": "count(count by (site_id) (pantheon_visits_total{site_id=~\"$siteName\", account=~\"$account\", ${plan}}))",
           "refId": "A"
         }
       ],
@@ -380,7 +380,7 @@
             "uid": "${ds_prometheus}"
           },
           "editorMode": "builder",
-          "expr": "pantheon_visits_total{site_id=~\"$siteName\"}",
+          "expr": "pantheon_visits_total{site_id=~\"$siteName\", account=~\"$account\", ${plan}}",
           "legendFormat": "{{site_id}} ({{account}})",
           "range": true,
           "refId": "A"
@@ -479,7 +479,7 @@
             "uid": "${ds_prometheus}"
           },
           "editorMode": "builder",
-          "expr": "pantheon_pages_served_total{site_id=~\"$siteName\"}",
+          "expr": "pantheon_pages_served_total{site_id=~\"$siteName\", account=~\"$account\", ${plan}}",
           "legendFormat": "{{site_id}} ({{account}})",
           "range": true,
           "refId": "A"
@@ -580,7 +580,7 @@
             "uid": "${ds_prometheus}"
           },
           "editorMode": "builder",
-          "expr": "pantheon_cache_hit_ratio{site_id=~\"$siteName\"}",
+          "expr": "pantheon_cache_hit_ratio{site_id=~\"$siteName\", account=~\"$account\", ${plan}}",
           "legendFormat": "{{site_id}} ({{account}})",
           "range": true,
           "refId": "A"
@@ -710,7 +710,7 @@
             "uid": "${ds_prometheus}"
           },
           "editorMode": "builder",
-          "expr": "pantheon_cache_hits_total{site_id=~\"$siteName\"}",
+          "expr": "pantheon_cache_hits_total{site_id=~\"$siteName\", account=~\"$account\", ${plan}}",
           "legendFormat": "{{site_id}} - hits",
           "range": true,
           "refId": "A"
@@ -721,7 +721,7 @@
             "uid": "${ds_prometheus}"
           },
           "editorMode": "builder",
-          "expr": "pantheon_cache_misses_total{site_id=~\"$siteName\"}",
+          "expr": "pantheon_cache_misses_total{site_id=~\"$siteName\", account=~\"$account\", ${plan}}",
           "legendFormat": "{{site_id}} - misses",
           "range": true,
           "refId": "B"
@@ -816,7 +816,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum by (site_id) (sum_over_time(max_over_time(pantheon_visits_total{site_id=~\"$siteName\"}[1d])[$__range:1d]))",
+          "expr": "sum by (site_id) (sum_over_time(max_over_time(pantheon_visits_total{site_id=~\"$siteName\", account=~\"$account\", ${plan}}[1d])[$__range:1d]))",
           "format": "table",
           "instant": true,
           "range": false,
@@ -945,7 +945,7 @@
             "uid": "${ds_prometheus}"
           },
           "editorMode": "code",
-          "expr": "avg by(site_id) (avg_over_time(pantheon_cache_hit_ratio{site_id=~\"$siteName\"}[$__range]))",
+          "expr": "avg by(site_id) (avg_over_time(pantheon_cache_hit_ratio{site_id=~\"$siteName\", account=~\"$account\", ${plan}}[$__range]))",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -1017,6 +1017,66 @@
         },
         "refresh": 1,
         "regex": "",
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "allowCustomValue": false,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds_prometheus}"
+        },
+        "definition": "label_values(account)",
+        "includeAll": true,
+        "label": "Account",
+        "name": "account",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(account)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "Live",
+          "value": "plan!=\"Sandbox\""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds_prometheus}"
+        },
+        "definition": "query_result(group by (plan) (pantheon_visits_total))",
+        "includeAll": false,
+        "label": "Plan",
+        "name": "plan",
+        "options": [],
+        "query": {
+          "qryType": 3,
+          "query": "query_result(group by (plan) (pantheon_visits_total))",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "/(?<value>plan=\"(?<text>[^\"]+)\")/",
+        "sort": 1,
+        "staticOptions": [
+          {
+            "text": "Live",
+            "value": "plan!=\"Sandbox\""
+          },
+          {
+            "text": "All",
+            "value": "plan=~\".*\""
+          }
+        ],
         "type": "query"
       }
     ]
