@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.5.0...v0.6.0) (2026-01-22)
+
+
+### Features
+
+* **grafana:** add account and plan filters to dashboard ([#79](https://github.com/deviantintegral/pantheon-metrics-prometheus/issues/79)) ([0083c8c](https://github.com/deviantintegral/pantheon-metrics-prometheus/commit/0083c8c1a116006fb82799a796ef56cf014aeca6))
+
+
+### Bug Fixes
+
+* **grafana:** average cache site query ([04688b1](https://github.com/deviantintegral/pantheon-metrics-prometheus/commit/04688b1d2d7e10248595234daf1685e5b3a2ea40))
+
 ## [0.5.0](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.4.1...v0.5.0) (2026-01-22)
 
 
