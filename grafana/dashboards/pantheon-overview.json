@@ -1065,7 +1065,7 @@
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
-        "regex": "/(plan=\"[^\"]+\")/",
+        "regex": "/(?<value>plan=\"(?<text>[^\"]+)\")/",
         "sort": 1,
         "staticOptions": [
           {
