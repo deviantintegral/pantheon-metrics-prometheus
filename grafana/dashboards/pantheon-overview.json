@@ -1046,32 +1046,28 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": "Live",
-          "value": "^(?!Sandbox$).*$"
+          "text": "All",
+          "value": "$__all"
         },
-        "includeAll": false,
+        "definition": "label_values(plan)",
+        "includeAll": true,
         "label": "Plan",
         "name": "plan",
-        "options": [
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(plan)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "staticOptions": [
           {
-            "selected": true,
             "text": "Live",
-            "value": "^(?!Sandbox$).*$"
-          },
-          {
-            "selected": false,
-            "text": "All",
-            "value": ".*"
-          },
-          {
-            "selected": false,
-            "text": "Sandbox",
-            "value": "Sandbox"
+            "value": "Live"
           }
         ],
-        "query": "Live : ^(?!Sandbox$).*$, All : .*, Sandbox : Sandbox",
-        "type": "custom"
+        "type": "query"
       }
     ]
   },
