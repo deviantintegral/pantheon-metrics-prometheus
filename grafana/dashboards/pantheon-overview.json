@@ -78,7 +78,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time(max_over_time(pantheon_visits{name=~\"$siteName\"}[1d])[$__range:1d]))",
+          "expr": "sum(sum_over_time(max_over_time(pantheon_visits_total{site_id=~\"$siteName\"}[1d])[$__range:1d]))",
           "range": true,
           "refId": "A"
         }
@@ -143,7 +143,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(sum_over_time(max_over_time(pantheon_pages_served{name=~\"$siteName\"}[1d])[$__range:1d]))",
+          "expr": "sum(sum_over_time(max_over_time(pantheon_pages_served_total{site_id=~\"$siteName\"}[1d])[$__range:1d]))",
           "range": true,
           "refId": "A"
         }
@@ -163,7 +163,7 @@
             "mode": "thresholds"
           },
           "mappings": [],
-          "max": 100,
+          "max": 1,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
@@ -174,15 +174,15 @@
               },
               {
                 "color": "yellow",
-                "value": 50
+                "value": 0.5
               },
               {
                 "color": "green",
-                "value": 80
+                "value": 0.8
               }
             ]
           },
-          "unit": "percent"
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -216,7 +216,7 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "avg(pantheon_cache_hit_ratio{name=~\"$siteName\"})",
+          "expr": "avg(pantheon_cache_hit_ratio{site_id=~\"$siteName\"})",
           "range": true,
           "refId": "A"
         }
@@ -280,7 +280,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "count(count by (name) (pantheon_visits))",
+          "expr": "count(count by (site_id) (pantheon_visits_total))",
           "refId": "A"
         }
       ],
@@ -380,8 +380,8 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "pantheon_visits{name=~\"$siteName\"}",
-          "legendFormat": "{{name}} ({{account}})",
+          "expr": "pantheon_visits_total{site_id=~\"$siteName\"}",
+          "legendFormat": "{{site_id}} ({{account}})",
           "range": true,
           "refId": "A"
         }
@@ -479,8 +479,8 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "pantheon_pages_served{name=~\"$siteName\"}",
-          "legendFormat": "{{name}} ({{account}})",
+          "expr": "pantheon_pages_served_total{site_id=~\"$siteName\"}",
+          "legendFormat": "{{site_id}} ({{account}})",
           "range": true,
           "refId": "A"
         }
@@ -534,7 +534,7 @@
             }
           },
           "mappings": [],
-          "max": 100,
+          "max": 1,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
@@ -545,7 +545,7 @@
               }
             ]
           },
-          "unit": "percent"
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -580,8 +580,8 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "pantheon_cache_hit_ratio{name=~\"$siteName\"}",
-          "legendFormat": "{{name}} ({{account}})",
+          "expr": "pantheon_cache_hit_ratio{site_id=~\"$siteName\"}",
+          "legendFormat": "{{site_id}} ({{account}})",
           "range": true,
           "refId": "A"
         }
@@ -710,8 +710,8 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "pantheon_cache_hits{name=~\"$siteName\"}",
-          "legendFormat": "{{name}} - hits",
+          "expr": "pantheon_cache_hits_total{site_id=~\"$siteName\"}",
+          "legendFormat": "{{site_id}} - hits",
           "range": true,
           "refId": "A"
         },
@@ -721,8 +721,8 @@
             "uid": "prometheus"
           },
           "editorMode": "builder",
-          "expr": "pantheon_cache_misses{name=~\"$siteName\"}",
-          "legendFormat": "{{name}} - misses",
+          "expr": "pantheon_cache_misses_total{site_id=~\"$siteName\"}",
+          "legendFormat": "{{site_id}} - misses",
           "range": true,
           "refId": "B"
         }
@@ -816,7 +816,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum by (name) (sum_over_time(max_over_time(pantheon_visits{name=~\"$siteName\"}[1d])[$__range:1d]))",
+          "expr": "sum by (site_id) (sum_over_time(max_over_time(pantheon_visits_total{site_id=~\"$siteName\"}[1d])[$__range:1d]))",
           "format": "table",
           "instant": true,
           "range": false,
@@ -830,13 +830,13 @@
           "options": {
             "excludeByName": {
               "Time": true,
-              "name": false
+              "site_id": false
             },
             "includeByName": {},
             "indexByName": {
               "Time": 0,
               "Value": 3,
-              "name": 1,
+              "site_id": 1,
               "plan": 2
             },
             "orderBy": [],
@@ -894,7 +894,7 @@
               },
               {
                 "id": "unit",
-                "value": "percent"
+                "value": "percentunit"
               },
               {
                 "id": "custom.cellOptions",
@@ -910,7 +910,7 @@
               },
               {
                 "id": "max",
-                "value": 100
+                "value": 1
               },
               {
                 "id": "min",
@@ -945,7 +945,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "avg by(name) (avg_over_time(pantheon_cache_hit_ratio{name=~\"$siteName\"}[$__range]))",
+          "expr": "avg by(site_id) (avg_over_time(pantheon_cache_hit_ratio{site_id=~\"$siteName\"}[$__range]))",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -962,7 +962,7 @@
             "indexByName": {},
             "renameByName": {
               "account": "Account",
-              "name": "Site",
+              "site_id": "Site",
               "plan": "Plan"
             }
           }
@@ -987,14 +987,14 @@
           "text": "All",
           "value": "$__all"
         },
-        "definition": "label_values(name)",
+        "definition": "label_values(site_id)",
         "includeAll": true,
-        "label": "Site Name",
+        "label": "Site ID",
         "name": "siteName",
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(name)",
+          "query": "label_values(site_id)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
