@@ -2,6 +2,7 @@ package collector
 
 import (
 	"testing"
+	"time"
 
 	"github.com/deviantintegral/pantheon-metrics-prometheus/internal/pantheon"
 	"github.com/prometheus/client_golang/prometheus"
@@ -10,6 +11,13 @@ import (
 const (
 	testCollectorSite1 = "site1"
 )
+
+// fixedTime returns a function that always returns the same time
+func fixedTime(t time.Time) func() time.Time {
+	return func() time.Time {
+		return t
+	}
+}
 
 func TestNewPantheonCollector(t *testing.T) {
 	// Test creating a new collector with multiple sites
@@ -73,7 +81,11 @@ func TestDescribe(t *testing.T) {
 }
 
 func TestCollect(t *testing.T) {
-	// Test Collect method collects metrics from all sites
+	// Test Collect method collects metrics from all sites with forward-fill
+	// Using timestamps 2 minutes apart, with "now" set to 2 minutes after the last timestamp
+	// First timestamp: 1762732800
+	// Second timestamp: 1762732920 (2 minutes later)
+	// "Now": 1762733040 (2 minutes after second)
 	metricsData := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
@@ -83,8 +95,8 @@ func TestCollect(t *testing.T) {
 			CacheMisses:   2962,
 			CacheHitRatio: "3.86%",
 		},
-		"1762819200": {
-			DateTime:      "2025-11-11T00:00:00",
+		"1762732920": {
+			DateTime:      "2025-11-10T00:02:00",
 			Visits:        824,
 			PagesServed:   2950,
 			CacheHits:     151,
@@ -104,8 +116,10 @@ func TestCollect(t *testing.T) {
 	}
 
 	collector := NewPantheonCollector(sites)
+	// Set "now" to 2 minutes after the last timestamp
+	collector.SetNowFunc(fixedTime(time.Unix(1762733040, 0)))
 
-	ch := make(chan prometheus.Metric, 25)
+	ch := make(chan prometheus.Metric, 50)
 	collector.Collect(ch)
 	close(ch)
 
@@ -115,15 +129,18 @@ func TestCollect(t *testing.T) {
 		count++
 	}
 
-	// Should have 10 metrics (5 metric types × 1 historical timestamp + 5 latest without timestamp)
-	// The latest timestamp is NOT emitted with a timestamp, only without one
-	if count != 10 {
-		t.Errorf("Expected 10 metrics, got %d", count)
+	// With forward-fill:
+	// First timestamp (1762732800) fills until second timestamp (1762732920): 2 intervals (0, 60)
+	// Second timestamp (1762732920) fills until now (1762733040): 2 intervals (0, 60)
+	// Total: (2 + 2) * 5 metrics = 20 metrics
+	if count != 20 {
+		t.Errorf("Expected 20 metrics, got %d", count)
 	}
 }
 
 func TestCollectWithMultipleSites(t *testing.T) {
-	// Test Collect with multiple sites
+	// Test Collect with multiple sites, each with 1 timestamp
+	// Set "now" to 2 minutes after both timestamps
 	metricsData1 := map[string]pantheon.MetricData{
 		"1762732800": {
 			DateTime:      "2025-11-10T00:00:00",
@@ -136,8 +153,8 @@ func TestCollectWithMultipleSites(t *testing.T) {
 	}
 
 	metricsData2 := map[string]pantheon.MetricData{
-		"1762819200": {
-			DateTime:      "2025-11-11T00:00:00",
+		"1762732800": {
+			DateTime:      "2025-11-10T00:00:00",
 			Visits:        500,
 			PagesServed:   2000,
 			CacheHits:     100,
@@ -164,8 +181,10 @@ func TestCollectWithMultipleSites(t *testing.T) {
 	}
 
 	collector := NewPantheonCollector(sites)
+	// Set "now" to 2 minutes after the timestamp
+	collector.SetNowFunc(fixedTime(time.Unix(1762732920, 0)))
 
-	ch := make(chan prometheus.Metric, 25)
+	ch := make(chan prometheus.Metric, 50)
 	collector.Collect(ch)
 	close(ch)
 
@@ -175,10 +194,11 @@ func TestCollectWithMultipleSites(t *testing.T) {
 		count++
 	}
 
-	// Should have 10 metrics (5 latest without timestamp × 2 sites)
-	// Each site has only 1 timestamp, which is the latest, so no historical metrics are emitted
-	if count != 10 {
-		t.Errorf("Expected 10 metrics, got %d", count)
+	// With forward-fill:
+	// Each site has 1 timestamp that fills until now (2 minutes = 2 intervals)
+	// Total: 2 * 5 metrics * 2 sites = 20 metrics
+	if count != 20 {
+		t.Errorf("Expected 20 metrics, got %d", count)
 	}
 }
 
@@ -246,6 +266,8 @@ func TestCollectWithInvalidCacheHitRatio(t *testing.T) {
 	}
 
 	collector := NewPantheonCollector(sites)
+	// Set "now" to 2 minutes after the timestamp
+	collector.SetNowFunc(fixedTime(time.Unix(1762732920, 0)))
 
 	ch := make(chan prometheus.Metric, 20)
 	collector.Collect(ch)
@@ -257,9 +279,9 @@ func TestCollectWithInvalidCacheHitRatio(t *testing.T) {
 		count++
 	}
 
-	// Should have 5 metrics (only the latest without timestamp, no historical)
-	if count != 5 {
-		t.Errorf("Expected 5 metrics, got %d", count)
+	// With forward-fill: 2 intervals * 5 metrics = 10 metrics
+	if count != 10 {
+		t.Errorf("Expected 10 metrics, got %d", count)
 	}
 }
 
@@ -551,6 +573,8 @@ func TestCollectWithNoDataCacheHitRatio(t *testing.T) {
 	}
 
 	collector := NewPantheonCollector(sites)
+	// Set "now" to 2 minutes after the timestamp
+	collector.SetNowFunc(fixedTime(time.Unix(1762732920, 0)))
 
 	ch := make(chan prometheus.Metric, 20)
 	collector.Collect(ch)
@@ -562,9 +586,9 @@ func TestCollectWithNoDataCacheHitRatio(t *testing.T) {
 		count++
 	}
 
-	// Should have 5 metrics (only the latest without timestamp, no historical)
-	if count != 5 {
-		t.Errorf("Expected 5 metrics, got %d", count)
+	// With forward-fill: 2 intervals * 5 metrics = 10 metrics
+	if count != 10 {
+		t.Errorf("Expected 10 metrics, got %d", count)
 	}
 }
 
@@ -592,6 +616,8 @@ func TestCollectWithNoCacheHitRatioPercentSign(t *testing.T) {
 	}
 
 	collector := NewPantheonCollector(sites)
+	// Set "now" to 2 minutes after the timestamp
+	collector.SetNowFunc(fixedTime(time.Unix(1762732920, 0)))
 
 	ch := make(chan prometheus.Metric, 20)
 	collector.Collect(ch)
@@ -603,9 +629,9 @@ func TestCollectWithNoCacheHitRatioPercentSign(t *testing.T) {
 		count++
 	}
 
-	// Should have 5 metrics (only the latest without timestamp, no historical)
-	if count != 5 {
-		t.Errorf("Expected 5 metrics, got %d", count)
+	// With forward-fill: 2 intervals * 5 metrics = 10 metrics
+	if count != 10 {
+		t.Errorf("Expected 10 metrics, got %d", count)
 	}
 }
 
@@ -696,6 +722,8 @@ func TestCollectWithZeroValues(t *testing.T) {
 	}
 
 	collector := NewPantheonCollector(sites)
+	// Set "now" to 2 minutes after the timestamp
+	collector.SetNowFunc(fixedTime(time.Unix(1762732920, 0)))
 
 	ch := make(chan prometheus.Metric, 20)
 	collector.Collect(ch)
@@ -707,9 +735,9 @@ func TestCollectWithZeroValues(t *testing.T) {
 		count++
 	}
 
-	// Should have 5 metrics (only the latest without timestamp, no historical)
-	if count != 5 {
-		t.Errorf("Expected 5 metrics with zero values, got %d", count)
+	// With forward-fill: 2 intervals * 5 metrics = 10 metrics
+	if count != 10 {
+		t.Errorf("Expected 10 metrics with zero values, got %d", count)
 	}
 }
 
@@ -737,6 +765,8 @@ func TestCollectWithLargeNumbers(t *testing.T) {
 	}
 
 	collector := NewPantheonCollector(sites)
+	// Set "now" to 2 minutes after the timestamp
+	collector.SetNowFunc(fixedTime(time.Unix(1762732920, 0)))
 
 	ch := make(chan prometheus.Metric, 20)
 	collector.Collect(ch)
@@ -747,9 +777,9 @@ func TestCollectWithLargeNumbers(t *testing.T) {
 		count++
 	}
 
-	// Should have 5 metrics (only the latest without timestamp, no historical)
-	if count != 5 {
-		t.Errorf("Expected 5 metrics, got %d", count)
+	// With forward-fill: 2 intervals * 5 metrics = 10 metrics
+	if count != 10 {
+		t.Errorf("Expected 10 metrics, got %d", count)
 	}
 }
 
@@ -777,6 +807,8 @@ func TestCollectWithNegativeTimestamp(t *testing.T) {
 	}
 
 	collector := NewPantheonCollector(sites)
+	// Set "now" to 2 minutes after the timestamp (-100 + 120 = 20)
+	collector.SetNowFunc(fixedTime(time.Unix(20, 0)))
 
 	ch := make(chan prometheus.Metric, 20)
 	collector.Collect(ch)
@@ -788,8 +820,8 @@ func TestCollectWithNegativeTimestamp(t *testing.T) {
 		count++
 	}
 
-	// Should have 5 metrics (only the latest without timestamp, no historical)
-	if count != 5 {
-		t.Errorf("Expected 5 metrics, got %d", count)
+	// With forward-fill: 2 intervals * 5 metrics = 10 metrics
+	if count != 10 {
+		t.Errorf("Expected 10 metrics, got %d", count)
 	}
 }

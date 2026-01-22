@@ -3,6 +3,7 @@ package collector
 
 import (
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,8 +15,9 @@ import (
 
 // PantheonCollector collects Pantheon metrics for multiple sites
 type PantheonCollector struct {
-	sites []pantheon.SiteMetrics
-	mu    sync.RWMutex
+	sites   []pantheon.SiteMetrics
+	mu      sync.RWMutex
+	nowFunc func() time.Time // Function to get current time (for testing)
 
 	visits        *prometheus.Desc
 	pagesServed   *prometheus.Desc
@@ -27,7 +29,8 @@ type PantheonCollector struct {
 // NewPantheonCollector creates a new Pantheon metrics collector
 func NewPantheonCollector(sites []pantheon.SiteMetrics) *PantheonCollector {
 	return &PantheonCollector{
-		sites: sites,
+		sites:   sites,
+		nowFunc: time.Now,
 		visits: prometheus.NewDesc(
 			"pantheon_visits_total",
 			"Total number of visits to a Pantheon site",
@@ -76,120 +79,98 @@ func (c *PantheonCollector) Collect(ch chan<- prometheus.Metric) {
 	defer c.mu.RUnlock()
 
 	for _, site := range c.sites {
-		// First pass: find the most recent timestamp
-		var latestTimestamp int64
-		var latestTimestampStr string
-		var latestData pantheon.MetricData
-		hasData := false
-
-		for timestampStr, data := range site.MetricsData {
-			timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
-			if err != nil {
-				continue
-			}
-			if !hasData || timestamp > latestTimestamp {
-				latestTimestamp = timestamp
-				latestTimestampStr = timestampStr
-				latestData = data
-				hasData = true
-			}
+		// Collect and sort all timestamps
+		type timestampedData struct {
+			timestamp int64
+			data      pantheon.MetricData
 		}
+		var sortedData []timestampedData
 
-		// Second pass: emit all historical metrics EXCEPT the latest one
-		// (the latest will be emitted without a timestamp at the end)
 		for timestampStr, data := range site.MetricsData {
-			// Skip the latest timestamp - it will be emitted without timestamp below
-			if timestampStr == latestTimestampStr {
-				continue
-			}
-
 			timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
 			if err != nil {
 				log.Printf("Error parsing timestamp %s: %v", timestampStr, err)
 				continue
 			}
-			ts := time.Unix(timestamp, 0)
-
-			cacheHitRatioVal := c.parseCacheHitRatio(data.CacheHitRatio)
-
-			// Create metrics with labels and timestamps
-			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
-				c.visits,
-				prometheus.GaugeValue,
-				float64(data.Visits),
-				site.SiteName, site.Label, site.PlanName, site.Account,
-			))
-
-			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
-				c.pagesServed,
-				prometheus.GaugeValue,
-				float64(data.PagesServed),
-				site.SiteName, site.Label, site.PlanName, site.Account,
-			))
-
-			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
-				c.cacheHits,
-				prometheus.GaugeValue,
-				float64(data.CacheHits),
-				site.SiteName, site.Label, site.PlanName, site.Account,
-			))
-
-			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
-				c.cacheMisses,
-				prometheus.GaugeValue,
-				float64(data.CacheMisses),
-				site.SiteName, site.Label, site.PlanName, site.Account,
-			))
-
-			ch <- prometheus.NewMetricWithTimestamp(ts, prometheus.MustNewConstMetric(
-				c.cacheHitRatio,
-				prometheus.GaugeValue,
-				cacheHitRatioVal,
-				site.SiteName, site.Label, site.PlanName, site.Account,
-			))
+			sortedData = append(sortedData, timestampedData{timestamp: timestamp, data: data})
 		}
 
-		// Emit the most recent metric with the current request time so consumers
-		// can pull current data without gaps in their time series
-		if hasData {
-			now := time.Now()
-			cacheHitRatioVal := c.parseCacheHitRatio(latestData.CacheHitRatio)
-
-			ch <- prometheus.NewMetricWithTimestamp(now, prometheus.MustNewConstMetric(
-				c.visits,
-				prometheus.GaugeValue,
-				float64(latestData.Visits),
-				site.SiteName, site.Label, site.PlanName, site.Account,
-			))
-
-			ch <- prometheus.NewMetricWithTimestamp(now, prometheus.MustNewConstMetric(
-				c.pagesServed,
-				prometheus.GaugeValue,
-				float64(latestData.PagesServed),
-				site.SiteName, site.Label, site.PlanName, site.Account,
-			))
-
-			ch <- prometheus.NewMetricWithTimestamp(now, prometheus.MustNewConstMetric(
-				c.cacheHits,
-				prometheus.GaugeValue,
-				float64(latestData.CacheHits),
-				site.SiteName, site.Label, site.PlanName, site.Account,
-			))
-
-			ch <- prometheus.NewMetricWithTimestamp(now, prometheus.MustNewConstMetric(
-				c.cacheMisses,
-				prometheus.GaugeValue,
-				float64(latestData.CacheMisses),
-				site.SiteName, site.Label, site.PlanName, site.Account,
-			))
-
-			ch <- prometheus.NewMetricWithTimestamp(now, prometheus.MustNewConstMetric(
-				c.cacheHitRatio,
-				prometheus.GaugeValue,
-				cacheHitRatioVal,
-				site.SiteName, site.Label, site.PlanName, site.Account,
-			))
+		if len(sortedData) == 0 {
+			continue
 		}
+
+		// Sort by timestamp ascending
+		sort.Slice(sortedData, func(i, j int) bool {
+			return sortedData[i].timestamp < sortedData[j].timestamp
+		})
+
+		now := c.nowFunc()
+
+		// Emit metrics for each timestamp with forward-fill until the next timestamp
+		for i, td := range sortedData {
+			// Determine the end time for forward-fill
+			var endTimestamp int64
+			if i < len(sortedData)-1 {
+				// Forward-fill until just before the next metric timestamp
+				endTimestamp = sortedData[i+1].timestamp
+			} else {
+				// For the last metric, forward-fill until now
+				endTimestamp = now.Unix()
+			}
+
+			c.emitMetricsWithForwardFill(ch, &site, td.data, td.timestamp, endTimestamp)
+		}
+	}
+}
+
+// emitMetricsWithForwardFill emits metrics at startTimestamp and then every minute
+// until endTimestamp (exclusive)
+func (c *PantheonCollector) emitMetricsWithForwardFill(
+	ch chan<- prometheus.Metric,
+	site *pantheon.SiteMetrics,
+	data pantheon.MetricData,
+	startTimestamp, endTimestamp int64,
+) {
+	cacheHitRatioVal := c.parseCacheHitRatio(data.CacheHitRatio)
+
+	// Emit metrics every minute from startTimestamp until endTimestamp
+	for ts := startTimestamp; ts < endTimestamp; ts += 60 {
+		t := time.Unix(ts, 0)
+
+		ch <- prometheus.NewMetricWithTimestamp(t, prometheus.MustNewConstMetric(
+			c.visits,
+			prometheus.GaugeValue,
+			float64(data.Visits),
+			site.SiteName, site.Label, site.PlanName, site.Account,
+		))
+
+		ch <- prometheus.NewMetricWithTimestamp(t, prometheus.MustNewConstMetric(
+			c.pagesServed,
+			prometheus.GaugeValue,
+			float64(data.PagesServed),
+			site.SiteName, site.Label, site.PlanName, site.Account,
+		))
+
+		ch <- prometheus.NewMetricWithTimestamp(t, prometheus.MustNewConstMetric(
+			c.cacheHits,
+			prometheus.GaugeValue,
+			float64(data.CacheHits),
+			site.SiteName, site.Label, site.PlanName, site.Account,
+		))
+
+		ch <- prometheus.NewMetricWithTimestamp(t, prometheus.MustNewConstMetric(
+			c.cacheMisses,
+			prometheus.GaugeValue,
+			float64(data.CacheMisses),
+			site.SiteName, site.Label, site.PlanName, site.Account,
+		))
+
+		ch <- prometheus.NewMetricWithTimestamp(t, prometheus.MustNewConstMetric(
+			c.cacheHitRatio,
+			prometheus.GaugeValue,
+			cacheHitRatioVal,
+			site.SiteName, site.Label, site.PlanName, site.Account,
+		))
 	}
 }
 
@@ -239,4 +220,9 @@ func (c *PantheonCollector) UpdateSiteMetrics(accountID, siteName string, metric
 			return
 		}
 	}
+}
+
+// SetNowFunc sets the function used to get the current time (for testing)
+func (c *PantheonCollector) SetNowFunc(f func() time.Time) {
+	c.nowFunc = f
 }
