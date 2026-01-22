@@ -215,8 +215,8 @@
             "type": "prometheus",
             "uid": "${ds_prometheus}"
           },
-          "editorMode": "builder",
-          "expr": "avg(pantheon_cache_hit_ratio{site_id=~\"$siteName\"})",
+          "editorMode": "code",
+          "expr": "avg(avg_over_time(pantheon_cache_hit_ratio{site_id=~\"$siteName\"}[$__range]))",
           "range": true,
           "refId": "A"
         }
