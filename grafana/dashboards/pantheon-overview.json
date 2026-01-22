@@ -22,6 +22,31 @@
   "links": [],
   "panels": [
     {
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "id": 11,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "Pantheon updates metrics once per day. As well, there is a delay, so that metrics for today won't show up until tomorrow. These displays work best with a range of at least 2 days.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "12.3.1",
+      "title": "Pantheon Metrics",
+      "type": "text"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${ds_prometheus}"
@@ -48,8 +73,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 6,
-        "x": 0,
+        "w": 4,
+        "x": 4,
         "y": 0
       },
       "id": 1,
@@ -113,8 +138,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 6,
-        "x": 6,
+        "w": 4,
+        "x": 8,
         "y": 0
       },
       "id": 2,
@@ -215,7 +240,7 @@
             "type": "prometheus",
             "uid": "${ds_prometheus}"
           },
-"editorMode": "code",
+          "editorMode": "code",
           "expr": "avg(avg_over_time(pantheon_cache_hit_ratio{site_id=~\"$siteName\", account=~\"$account\", ${plan}}[$__range]))",
           "range": true,
           "refId": "A"
