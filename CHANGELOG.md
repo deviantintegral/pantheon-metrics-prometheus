@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.4.0...v0.4.1) (2026-01-22)
+
+
+### Bug Fixes
+
+* **ci:** use buildx imagetools to create multi-arch manifest ([3fc4b31](https://github.com/deviantintegral/pantheon-metrics-prometheus/commit/3fc4b315667c4b6039a25dde934da192141a81f6))
+
 ## [0.4.0](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.3.0...v0.4.0) (2026-01-21)
 
 
