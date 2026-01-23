@@ -2,6 +2,8 @@
 
 A Go application that fetches Pantheon site metrics using the Terminus CLI and exposes them in Prometheus format for scraping. The exporter automatically discovers all sites across multiple Pantheon accounts and collects metrics for each one.
 
+![Example Dashboard](images/example-dashboard.png)
+
 ## Build Status
 
 | Workflow | Status |
