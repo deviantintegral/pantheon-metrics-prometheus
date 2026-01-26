@@ -22,6 +22,10 @@ A Go application that fetches Pantheon site metrics using the Terminus CLI and e
 - Account-based labeling for distinguishing metrics across accounts
 - Debug mode for troubleshooting API requests
 
+### Known Issues
+
+- When Pantheon rebuilds daily metrics, their API returns all zeros. This period of time has been observed to be from 20 to 40 minutes, daily. If you are setting any alerts, consider making them dependent on firing for at least an hour before triggering notifications.
+
 ## Prerequisites
 
 - One or more [Pantheon machine tokens](https://docs.pantheon.io/machine-tokens) with at least the "Developer" role in accounts to monitor.
