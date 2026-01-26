@@ -33,14 +33,16 @@ type SessionResponse struct {
 	ExpiresAt int64  `json:"expires_at"`
 }
 
-// Login authenticates using a machine token and returns a session
+// Login authenticates using a machine token and returns a session.
+// This uses PostOnlyOnce to avoid retry logic and token refresh attempts,
+// since this endpoint is the source of new session tokens.
 func (s *AuthService) Login(ctx context.Context, machineToken string) (*SessionResponse, error) {
 	req := LoginRequest{
 		MachineToken: machineToken,
 		Client:       "terminus-golang",
 	}
 
-	resp, err := s.client.Post(ctx, "/authorize/machine-token", req)
+	resp, err := s.client.PostOnlyOnce(ctx, "/authorize/machine-token", req)
 	if err != nil {
 		return nil, fmt.Errorf("login request failed: %w", err)
 	}

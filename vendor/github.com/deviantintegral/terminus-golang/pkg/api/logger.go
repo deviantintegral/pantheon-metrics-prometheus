@@ -4,6 +4,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"regexp"
 )
 
 // VerbosityLevel represents the logging verbosity level
@@ -19,6 +20,54 @@ const (
 	// VerbosityTrace enables trace level logging including HTTP details (-vvv)
 	VerbosityTrace VerbosityLevel = 3
 )
+
+// sensitiveFieldPatterns contains regex patterns for sensitive data that should be redacted in logs.
+// The pattern (?:[^"\\]|\\.)* properly handles JSON escape sequences like \" and \\
+// to prevent tokens containing escaped characters from bypassing redaction.
+var sensitiveFieldPatterns = []*regexp.Regexp{
+	// Machine token in request bodies (snake_case and PascalCase)
+	regexp.MustCompile(`"machine_token"\s*:\s*"((?:[^"\\]|\\.){20,})"`),
+	regexp.MustCompile(`"MachineToken"\s*:\s*"((?:[^"\\]|\\.){20,})"`),
+	// Session token in response bodies (snake_case and PascalCase)
+	regexp.MustCompile(`"session"\s*:\s*"((?:[^"\\]|\\.){20,})"`),
+	regexp.MustCompile(`"Session"\s*:\s*"((?:[^"\\]|\\.){20,})"`),
+	// Session token alternate field name (snake_case and PascalCase)
+	regexp.MustCompile(`"session_token"\s*:\s*"((?:[^"\\]|\\.){20,})"`),
+	regexp.MustCompile(`"SessionToken"\s*:\s*"((?:[^"\\]|\\.){20,})"`),
+	// User IDs (UUIDs)
+	regexp.MustCompile(`"user_id"\s*:\s*"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"`),
+	regexp.MustCompile(`"UserID"\s*:\s*"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"`),
+	regexp.MustCompile(`"id"\s*:\s*"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"`),
+	// Email addresses
+	regexp.MustCompile(`"email"\s*:\s*"[^"]+@[^"]+\.[^"]+"`),
+	regexp.MustCompile(`"Email"\s*:\s*"[^"]+@[^"]+\.[^"]+"`),
+}
+
+// sensitiveFieldReplacements contains the replacement strings for each pattern
+var sensitiveFieldReplacements = []string{
+	`"machine_token": "REDACTED"`,
+	`"MachineToken": "REDACTED"`,
+	`"session": "REDACTED"`,
+	`"Session": "REDACTED"`,
+	`"session_token": "REDACTED"`,
+	`"SessionToken": "REDACTED"`,
+	`"user_id": "REDACTED-USER-ID"`,
+	`"UserID": "REDACTED-USER-ID"`,
+	`"id": "REDACTED-ID"`,
+	`"email": "redacted@example.com"`,
+	`"Email": "redacted@example.com"`,
+}
+
+// RedactSensitiveData redacts sensitive tokens from a string (typically a JSON body).
+// It handles machine tokens, session tokens, user IDs, and email addresses.
+// This function is also used by test fixtures to redact sensitive data before saving.
+func RedactSensitiveData(data string) string {
+	result := data
+	for i, pattern := range sensitiveFieldPatterns {
+		result = pattern.ReplaceAllString(result, sensitiveFieldReplacements[i])
+	}
+	return result
+}
 
 // DefaultLogger is a default implementation of the Logger interface
 type DefaultLogger struct {
@@ -89,14 +138,14 @@ func (l *DefaultLogger) LogHTTPRequest(method, url string, headers map[string][]
 		for _, value := range values {
 			// Redact sensitive headers
 			if key == "Authorization" {
-				l.logger.Printf("[TRACE]     %s: [REDACTED]", key)
+				l.logger.Printf("[TRACE]     %s: REDACTED", key)
 			} else {
 				l.logger.Printf("[TRACE]     %s: %s", key, value)
 			}
 		}
 	}
 	if body != "" {
-		l.logger.Printf("[TRACE]   Body: %s", body)
+		l.logger.Printf("[TRACE]   Body: %s", RedactSensitiveData(body))
 	}
 }
 
@@ -115,7 +164,7 @@ func (l *DefaultLogger) LogHTTPResponse(statusCode int, status string, headers m
 		}
 	}
 	if body != "" {
-		l.logger.Printf("[TRACE]   Body: %s", body)
+		l.logger.Printf("[TRACE]   Body: %s", RedactSensitiveData(body))
 	}
 }
 
