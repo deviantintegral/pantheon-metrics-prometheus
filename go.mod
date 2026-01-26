@@ -3,7 +3,7 @@ module github.com/deviantintegral/pantheon-metrics-prometheus
 go 1.24.7
 
 require (
-	github.com/deviantintegral/terminus-golang v0.7.0
+	github.com/deviantintegral/terminus-golang v0.7.1
 	github.com/prometheus/client_golang v1.23.2
 )
 

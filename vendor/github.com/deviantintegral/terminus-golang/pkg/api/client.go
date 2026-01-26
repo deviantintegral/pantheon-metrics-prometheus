@@ -132,15 +132,20 @@ func (c *Client) SetTokenRefresher(refresher TokenRefresher) {
 	c.tokenRefresher = refresher
 }
 
-// Request makes an HTTP request to the API with retry logic
-func (c *Client) Request(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
+// requestOptions configures how a request is built
+type requestOptions struct {
+	includeAuth bool // Whether to include the Authorization header
+}
+
+// buildRequest creates an HTTP request with common setup (headers, logging, etc.)
+func (c *Client) buildRequest(ctx context.Context, method, path string, body interface{}, opts requestOptions) (*http.Request, []byte, error) {
 	var bodyReader io.Reader
 	var bodyBytes []byte
 	if body != nil {
 		var err error
 		bodyBytes, err = json.Marshal(body)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal request body: %w", err)
+			return nil, nil, fmt.Errorf("failed to marshal request body: %w", err)
 		}
 		bodyReader = bytes.NewReader(bodyBytes)
 	}
@@ -148,13 +153,13 @@ func (c *Client) Request(ctx context.Context, method, path string, body interfac
 	fullURL := c.baseURL + path
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, bodyReader)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	// Set headers
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", c.userAgent)
-	if c.token != "" {
+	if opts.includeAuth && c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
 	if body != nil {
@@ -180,6 +185,16 @@ func (c *Client) Request(ctx context.Context, method, path string, body interfac
 			}
 			httpLogger.LogHTTPRequest(method, fullURL, headers, bodyStr)
 		}
+	}
+
+	return req, bodyBytes, nil
+}
+
+// Request makes an HTTP request to the API with retry logic
+func (c *Client) Request(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
+	req, _, err := c.buildRequest(ctx, method, path, body, requestOptions{includeAuth: true})
+	if err != nil {
+		return nil, err
 	}
 
 	// Execute request with retry logic
@@ -215,6 +230,10 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 				}
 
 				// Handle 401 Unauthorized with token refresh
+				// Only attempt refresh if we haven't already tried in this call.
+				// The tokenRefreshAttempted flag prevents multiple refresh attempts
+				// within a single doWithRetry call. Recursive refresh is prevented
+				// by the token refresher using PostOnlyOnce which bypasses doWithRetry.
 				if resp.StatusCode == http.StatusUnauthorized &&
 					c.tokenRefresher != nil &&
 					!tokenRefreshAttempted {
@@ -226,6 +245,7 @@ func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
 					// Get context from request
 					ctx := req.Context()
 					newToken, refreshErr := c.tokenRefresher.RefreshToken(ctx)
+
 					if refreshErr != nil {
 						if c.logger != nil {
 							c.logger.Warn("Token refresh failed: %v", refreshErr)
@@ -375,6 +395,26 @@ func (c *Client) Get(ctx context.Context, path string) (*http.Response, error) {
 // Post makes a POST request
 func (c *Client) Post(ctx context.Context, path string, body interface{}) (*http.Response, error) {
 	return c.Request(ctx, http.MethodPost, path, body)
+}
+
+// PostOnlyOnce makes a POST request without retry logic or token refresh.
+// This is used for authentication endpoints where we don't want to send
+// an existing session token or trigger token refresh on failure.
+func (c *Client) PostOnlyOnce(ctx context.Context, path string, body interface{}) (*http.Response, error) {
+	req, _, err := c.buildRequest(ctx, http.MethodPost, path, body, requestOptions{includeAuth: false})
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute request directly without retry logic
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+
+	c.logResponse(resp)
+
+	return resp, nil
 }
 
 // Put makes a PUT request
