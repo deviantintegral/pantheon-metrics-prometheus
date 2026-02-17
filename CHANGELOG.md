@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.0](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.6.0...v1.0.0) (2026-02-17)
+
+
+### Features
+
+* add MIT license to the project ([f7d17cc](https://github.com/deviantintegral/pantheon-metrics-prometheus/commit/f7d17cc6fe39ca33050304d78380f511bf73ffdf))
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/deviantintegral/terminus-golang to v0.7.1 ([#84](https://github.com/deviantintegral/pantheon-metrics-prometheus/issues/84)) ([d3ef504](https://github.com/deviantintegral/pantheon-metrics-prometheus/commit/d3ef5042cea5f6305a656161fd16e6bd33b851b8))
+
+
+### Miscellaneous Chores
+
+* **release:** promote to 1.0.0 ([17e58fa](https://github.com/deviantintegral/pantheon-metrics-prometheus/commit/17e58faaaca2d390c963bd018fe88f6ac7205767))
+
 ## [0.6.0](https://github.com/deviantintegral/pantheon-metrics-prometheus/compare/v0.5.0...v0.6.0) (2026-01-22)
 
 
