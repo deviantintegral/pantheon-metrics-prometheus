@@ -2,7 +2,7 @@
 # This Dockerfile is used by GoReleaser to create minimal production images
 # with pre-built binaries. For local development, use the main Dockerfile.
 
-FROM alpine:3.23
+FROM alpine:3.24
 
 # Install ca-certificates for HTTPS and wget for healthcheck
 RUN apk add --no-cache ca-certificates wget
