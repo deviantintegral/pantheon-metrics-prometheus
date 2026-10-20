@@ -15,7 +15,7 @@ on:
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -124,7 +124,7 @@ jobs:
   docker-manifest:
     if: inputs.publish
     needs: docker
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Determine version
         id: version
